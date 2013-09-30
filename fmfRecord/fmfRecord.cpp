@@ -5,8 +5,6 @@
 #include <FlyCapture2.h>
 #include <omp.h>
 
-#define MAX_FRAMES 300;
-
 using namespace FlyCapture2;
 
 FILE **fout;
@@ -96,6 +94,11 @@ int _tmain(int argc, _TCHAR* argv[])
         getchar();
 		return -1;
     }
+
+	if (argc == 2)
+		nframes = _ttoi(argv[1]);
+	else
+		nframes = -1;
 
 	// initialize camera and video writer instances
 	ppCameras = new FlyCapture2::Camera*[numCameras];
@@ -197,7 +200,6 @@ int _tmain(int argc, _TCHAR* argv[])
 		sizeHeight = fmt7ImageSettings.height;
 		sizeWidth = fmt7ImageSettings.width;
 		bytesPerChunk = sizeHeight*sizeWidth + sizeof(double);
-		nframes = MAX_FRAMES;
 
 		sprintf_s(fname[i], "D:\\Camera%d.fmf", i);
 		remove(fname[i]);
