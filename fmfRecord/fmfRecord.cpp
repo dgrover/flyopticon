@@ -103,6 +103,9 @@ int _tmain(int argc, _TCHAR* argv[])
 	// initialize camera and video writer instances
 	ppCameras = new FlyCapture2::Camera*[numCameras];
 	fout = new FILE*[numCameras];
+
+	SYSTEMTIME st;
+	GetLocalTime(&st);
 		  	
     for ( unsigned int i = 0; i < numCameras; i++)
     {
@@ -201,7 +204,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		sizeWidth = fmt7ImageSettings.width;
 		bytesPerChunk = sizeHeight*sizeWidth + sizeof(double);
 
-		sprintf_s(fname[i], "D:\\Camera%d.fmf", i);
+		sprintf_s(fname[i], "D:\\Cam%d-%d%02d%02dT%02d%02d%02d.fmf", i, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
 		remove(fname[i]);
 		
 		fout[i] = fopen(fname[i], "wb");
