@@ -33,8 +33,6 @@ int RunSingleCamera(int i, int numImages)
 
 	FlyCapture2::TimeStamp timestamp;
 	
-	//int frameNumber=0;
-
 	// press [ESC] to exit from continuous streaming mode
 	for (frameNumber=0; frameNumber != numImages; frameNumber++) 
 	{
@@ -137,15 +135,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
         PrintCameraInfo(&camInfo); 
 
-        // Set all cameras to a specific mode and frame rate so they
-        // can be synchronized
-        /*error = ppCameras[i]->SetVideoModeAndFrameRate( 
-            FlyCapture2::VIDEOMODE_640x480Y8, 
-            FlyCapture2::FRAMERATE_60 );
-        */
-
 		// Query for available Format 7 modes
-		
 		fmt7Info.mode = k_fmt7Mode;
 		error = ppCameras[i]->GetFormat7Info( &fmt7Info, &supported );
 		
@@ -223,16 +213,21 @@ int _tmain(int argc, _TCHAR* argv[])
 		fwrite(&nframes, sizeof(unsigned __int64), 1, fout[i]);
 
     }
-
-    //Starting the capture in sync mode
-    error = FlyCapture2::Camera::StartSyncCapture( numCameras, (const FlyCapture2::Camera**)ppCameras );
-    
-	if (error != FlyCapture2::PGRERROR_OK)
+	
+	//Starting individual cameras
+	for ( unsigned int i = 0; i < numCameras; i++)
     {
-        PrintError( error );
-        return -1;
-    }
-   	
+		error = ppCameras[i]->StartCapture();
+		if (error != FlyCapture2::PGRERROR_OK)
+		{
+			PrintError( error );
+			getchar();
+			return -1;
+		}
+	}
+
+	printf("\nGrabbing ...\n");
+
 	//OpenMP parallel execution of camera streaming and recording to uncompressed fmf format videos
 	#pragma omp parallel for num_threads(numCameras)
     for (int i = 0; i < numCameras; i++ )
