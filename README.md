@@ -1,4 +1,4 @@
 fmfRecord
 =========
 
-Recording of fmf videos
+fmf recording from point grey flea3 cameras
