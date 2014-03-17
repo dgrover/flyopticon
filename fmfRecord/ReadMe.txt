@@ -1,20 +1,20 @@
 ========================================================================
-    CONSOLE APPLICATION : fmfRecord Project Overview
+    CONSOLE APPLICATION : fmfrecord Project Overview
 ========================================================================
 
-AppWizard has created this fmfRecord application for you.
+AppWizard has created this fmfrecord application for you.
 
 This file contains a summary of what you will find in each of the files that
-make up your fmfRecord application.
+make up your fmfrecord application.
 
 
-fmfRecord.vcproj
+fmfrecord.vcproj
     This is the main project file for VC++ projects generated using an Application Wizard.
     It contains information about the version of Visual C++ that generated the file, and
     information about the platforms, configurations, and project features selected with the
     Application Wizard.
 
-fmfRecord.cpp
+fmfrecord.cpp
     This is the main application source file.
 
 /////////////////////////////////////////////////////////////////////////////
@@ -22,7 +22,7 @@ Other standard files:
 
 StdAfx.h, StdAfx.cpp
     These files are used to build a precompiled header (PCH) file
-    named fmfRecord.pch and a precompiled types file named StdAfx.obj.
+    named fmfrecord.pch and a precompiled types file named StdAfx.obj.
 
 /////////////////////////////////////////////////////////////////////////////
 Other notes:

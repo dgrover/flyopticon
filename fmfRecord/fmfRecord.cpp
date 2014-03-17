@@ -1,6 +1,5 @@
-// fmfRecord.cpp : Defines the entry point for the console application.
+// fmfrecord.cpp : Defines the entry point for the console application.
 //
-
 #include "stdafx.h"
 #include <FlyCapture2.h>
 #include <omp.h>
@@ -265,7 +264,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		sizeWidth = fmt7ImageSettings.width;
 		bytesPerChunk = sizeHeight*sizeWidth + sizeof(double);
 
-		sprintf_s(fname[i], "D:\\Cam%d-%d%02d%02dT%02d%02d%02d.fmf", i, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+		sprintf_s(fname[i], "E:\\Cam%d-%d%02d%02dT%02d%02d%02d.fmf", i, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
 		remove(fname[i]);
 		
 		fout[i] = fopen(fname[i], "wb");
@@ -360,4 +359,3 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	return 0;
 }
-
