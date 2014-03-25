@@ -1,6 +1,8 @@
 // fmfrecord.cpp : Defines the entry point for the console application.
 //
 #include "stdafx.h"
+#include "SerialClass.h"
+
 #include <FlyCapture2.h>
 #include <omp.h>
 
