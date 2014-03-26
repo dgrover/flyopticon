@@ -1,12 +1,8 @@
 // fmfrecord.cpp : Defines the entry point for the console application.
 //
 #include "stdafx.h"
-#include "SerialClass.h"
 
-#include <FlyCapture2.h>
-#include <omp.h>
-
-#define TRIGGER_CAMERA	0
+#define TRIGGER_CAMERA	1
 
 using namespace FlyCapture2;
 
@@ -25,9 +21,9 @@ void PrintError( FlyCapture2::Error error )
     error.PrintErrorTrace();
 }
 
-int RunSingleCamera(int i, int numImages)
+unsigned __int64 RunSingleCamera(int i, unsigned __int64 numImages)
 {	
-	int frameNumber;
+	unsigned __int64 frameNumber;
 	double stamp;
 	FlyCapture2::Image rawImage;
 	
@@ -39,18 +35,16 @@ int RunSingleCamera(int i, int numImages)
 	// press [ESC] to exit from continuous streaming mode
 	for (frameNumber=0; frameNumber != numImages; frameNumber++) 
 	{
-			// TODO: arduino code to fire hardware trigger
-			
 			// Start capturing images
 			error = ppCameras[i]->RetrieveBuffer( &rawImage );
-			
+
 			//get image timestamp
 			timestamp = rawImage.GetTimeStamp();
 			stamp = (double) timestamp.seconds;
-						
+			
 			// Convert the raw image
 			error = rawImage.Convert( FlyCapture2::PIXEL_FORMAT_MONO8, &convertedImage );
-			
+				
 			if (error != FlyCapture2::PGRERROR_OK)
 			{
 				PrintError( error );
@@ -58,7 +52,7 @@ int RunSingleCamera(int i, int numImages)
 
 			fwrite(&stamp, sizeof(double), 1, fout[i]);
 			fwrite(convertedImage.GetData(), convertedImage.GetDataSize(), 1, fout[i]);
-			
+						
 			if (GetAsyncKeyState(VK_ESCAPE))
 				break;
 	}
@@ -112,7 +106,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	SYSTEMTIME st;
 	GetLocalTime(&st);
 		  	
-    for ( unsigned int i = 0; i < numCameras; i++)
+    for (unsigned int i = 0; i < numCameras; i++)
     {
         ppCameras[i] = new FlyCapture2::Camera();
 
@@ -151,49 +145,6 @@ int _tmain(int argc, _TCHAR* argv[])
         }
 
         PrintCameraInfo(&camInfo); 
-
-#if TRIGGER_CAMERA
-		// Check for external trigger support
-		TriggerModeInfo triggerModeInfo;
-		error = ppCameras[i]->GetTriggerModeInfo( &triggerModeInfo );
-		if (error != PGRERROR_OK)
-		{
-			PrintError( error );
-			return -1;
-		}
-
-		if ( triggerModeInfo.present != true )
-		{
-			printf( "Camera does not support external trigger! Exiting...\n" );
-			return -1;
-		}
-
-	    // Get current trigger settings
-		error = ppCameras[i]->GetTriggerMode( &triggerMode );
-		if (error != PGRERROR_OK)
-		{
-			PrintError( error );
-			return -1;
-		}
-
-		// Set camera to trigger mode 0
-		triggerMode.onOff = true;
-		triggerMode.mode = 0;
-		triggerMode.parameter = 0;
-
-		// Triggering the camera externally using source 0.
-		triggerMode.source = 0;
-
-		error = ppCameras[i]->SetTriggerMode( &triggerMode );
-		if (error != PGRERROR_OK)
-		{
-			PrintError( error );
-			return -1;
-		}
-
-		//TODO: initialize arduino to fire hardware trigger
-
-#endif
 
 		// Query for available Format 7 modes
 		fmt7Info.mode = k_fmt7Mode;
@@ -258,6 +209,53 @@ int _tmain(int argc, _TCHAR* argv[])
 		pProp.onOff = true;
 		pProp.autoManualMode = false;
 		pProp.absValue = 0.006;
+
+		error = ppCameras[i]->SetProperty( &pProp );
+        if (error != PGRERROR_OK)
+        {
+            PrintError( error );
+            return -1;
+        }
+#endif
+
+#if TRIGGER_CAMERA
+		// Check for external trigger support
+		TriggerModeInfo triggerModeInfo;
+		error = ppCameras[i]->GetTriggerModeInfo( &triggerModeInfo );
+		if (error != PGRERROR_OK)
+		{
+			PrintError( error );
+			return -1;
+		}
+
+		if ( triggerModeInfo.present != true )
+		{
+			printf( "Camera does not support external trigger! Exiting...\n" );
+			return -1;
+		}
+
+	    // Get current trigger settings
+		error = ppCameras[i]->GetTriggerMode( &triggerMode );
+		if (error != PGRERROR_OK)
+		{
+			PrintError( error );
+			return -1;
+		}
+
+		// Set camera to trigger mode 0
+		triggerMode.onOff = true;
+		triggerMode.mode = 0;
+		triggerMode.parameter = 0;
+
+		// Triggering the camera externally using source 0.
+		triggerMode.source = 0;
+
+		error = ppCameras[i]->SetTriggerMode( &triggerMode );
+		if (error != PGRERROR_OK)
+		{
+			PrintError( error );
+			return -1;
+		}
 #endif
 		
 		//settings for version 1.0 fmf header
@@ -287,7 +285,7 @@ int _tmain(int argc, _TCHAR* argv[])
     }
 	
 	//Starting individual cameras
-	for ( unsigned int i = 0; i < numCameras; i++)
+	for (unsigned int i = 0; i < numCameras; i++)
     {
 		error = ppCameras[i]->StartCapture();
 		if (error != FlyCapture2::PGRERROR_OK)
@@ -297,6 +295,18 @@ int _tmain(int argc, _TCHAR* argv[])
 			return -1;
 		}
 	}
+
+	// Retrieve frame rate property
+	//Property frmRate;
+	//frmRate.type = FRAME_RATE;
+	//error = ppCameras[0]->GetProperty( &frmRate );
+	//if (error != PGRERROR_OK)
+	//{
+	//    PrintError( error );
+	//    return -1;
+	//}
+
+	// printf( "Frame rate is %3.2f fps\n", frmRate.absValue );
 
 	printf("\nGrabbing ...\n");
 
@@ -309,7 +319,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	printf( "\nFinished grabbing %d images\n", nframesRun );
 	
-	for ( unsigned int i = 0; i < numCameras; i++ )
+	for (unsigned int i = 0; i < numCameras; i++ )
     {
 		//check if number of frames streamed from the camera were the same as what was initially set
 		if (nframesRun != nframes)
@@ -330,16 +340,16 @@ int _tmain(int argc, _TCHAR* argv[])
 			return -1;
 		}   
 
-#if TRIGGER_CAMERA
-	    // Turn off trigger mode
-		triggerMode.onOff = false;
-		error = ppCameras[i]->SetTriggerMode( &triggerMode );
-		if (error != PGRERROR_OK)
-		{
-			PrintError( error );
-			return -1;
-		}  
-#endif
+//#if TRIGGER_CAMERA
+//	    // Turn off trigger mode
+//		triggerMode.onOff = false;
+//		error = ppCameras[i]->SetTriggerMode( &triggerMode );
+//		if (error != PGRERROR_OK)
+//		{
+//			PrintError( error );
+//			return -1;
+//		}  
+//#endif
 
 		// Disconnect the camera
 		ppCameras[i]->Disconnect();
