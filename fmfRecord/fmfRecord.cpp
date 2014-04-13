@@ -7,9 +7,11 @@
 using namespace FlyCapture2;
 
 FILE **fout;
+FILE *flog;
 FlyCapture2::Camera** ppCameras;
 FlyCapture2::Error error;
 char fname[10][100];
+char flogname[100];
 
 void PrintCameraInfo( FlyCapture2::CameraInfo* pCamInfo )
 {
@@ -52,6 +54,8 @@ unsigned __int64 RunSingleCamera(int i, unsigned __int64 numImages)
 
 			fwrite(&stamp, sizeof(double), 1, fout[i]);
 			fwrite(convertedImage.GetData(), convertedImage.GetDataSize(), 1, fout[i]);
+
+			fprintf(flog, "Cam %d - Frame %d - TimeStamp [%d %d]\n", i, frameNumber, timestamp.seconds, timestamp.microSeconds);
 						
 			if (GetAsyncKeyState(VK_ESCAPE))
 				break;
@@ -102,6 +106,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	// initialize camera and video writer instances
 	ppCameras = new FlyCapture2::Camera*[numCameras];
 	fout = new FILE*[numCameras];
+	flog = new FILE;
 
 	SYSTEMTIME st;
 	GetLocalTime(&st);
@@ -125,15 +130,15 @@ int _tmain(int argc, _TCHAR* argv[])
             return -1;
         }
 
-		//// Power on the camera
-		//const unsigned int k_cameraPower = 0x610;
-		//const unsigned int k_powerVal = 0x80000000;
-		//error  = ppCameras[i]->WriteRegister( k_cameraPower, k_powerVal );
-		//if (error != PGRERROR_OK)
-		//{
-		//	PrintError( error );
-		//	return -1;
-		//}
+		// Power on the camera
+		const unsigned int k_cameraPower = 0x610;
+		const unsigned int k_powerVal = 0x80000000;
+		error  = ppCameras[i]->WriteRegister( k_cameraPower, k_powerVal );
+		if (error != PGRERROR_OK)
+		{
+			PrintError( error );
+			return -1;
+		}
 
         // Get the camera information
         FlyCapture2::CameraInfo camInfo;
@@ -216,9 +221,7 @@ int _tmain(int argc, _TCHAR* argv[])
             PrintError( error );
             return -1;
         }
-#endif
 
-#if TRIGGER_CAMERA
 		// Check for external trigger support
 		TriggerModeInfo triggerModeInfo;
 		error = ppCameras[i]->GetTriggerModeInfo( &triggerModeInfo );
@@ -282,6 +285,19 @@ int _tmain(int argc, _TCHAR* argv[])
 		fwrite(&bytesPerChunk, sizeof(unsigned __int64), 1, fout[i]);
 		fwrite(&nframes, sizeof(unsigned __int64), 1, fout[i]);
 
+		if (i == 0)
+		{
+				sprintf_s(flogname, "E:\\log-%d%02d%02dT%02d%02d%02d.txt", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+				remove(flogname);
+		
+				flog = fopen(flogname, "w");
+		
+				if(flog==NULL)
+				{
+					printf("\nError creating log file. Recording terminated.");
+					return -1;
+				}
+		}
     }
 	
 	//Starting individual cameras
@@ -296,17 +312,17 @@ int _tmain(int argc, _TCHAR* argv[])
 		}
 	}
 
-	// Retrieve frame rate property
-	//Property frmRate;
-	//frmRate.type = FRAME_RATE;
-	//error = ppCameras[0]->GetProperty( &frmRate );
-	//if (error != PGRERROR_OK)
-	//{
-	//    PrintError( error );
-	//    return -1;
-	//}
+	//Retrieve frame rate property
+	Property frmRate;
+	frmRate.type = FRAME_RATE;
+	error = ppCameras[0]->GetProperty( &frmRate );
+	if (error != PGRERROR_OK)
+	{
+	    PrintError( error );
+	    return -1;
+	}
 
-	// printf( "Frame rate is %3.2f fps\n", frmRate.absValue );
+	 printf( "\nFrame rate is %3.2f fps\n", frmRate.absValue );
 
 	printf("\nGrabbing ...\n");
 
@@ -338,18 +354,20 @@ int _tmain(int argc, _TCHAR* argv[])
 		{
 			PrintError( error );
 			return -1;
-		}   
+		}  
 
-//#if TRIGGER_CAMERA
-//	    // Turn off trigger mode
-//		triggerMode.onOff = false;
-//		error = ppCameras[i]->SetTriggerMode( &triggerMode );
-//		if (error != PGRERROR_OK)
-//		{
-//			PrintError( error );
-//			return -1;
-//		}  
-//#endif
+		fclose(flog);
+
+#if TRIGGER_CAMERA
+	    // Turn off trigger mode
+		triggerMode.onOff = false;
+		error = ppCameras[i]->SetTriggerMode( &triggerMode );
+		if (error != PGRERROR_OK)
+		{
+			PrintError( error );
+			return -1;
+		}  
+#endif
 
 		// Disconnect the camera
 		ppCameras[i]->Disconnect();
