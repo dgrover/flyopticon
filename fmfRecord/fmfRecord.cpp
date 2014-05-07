@@ -9,7 +9,6 @@ using namespace FlyCapture2;
 FILE **fout;
 FILE *flog;
 FlyCapture2::Camera** ppCameras;
-FlyCapture2::Error error;
 char fname[10][100];
 char flogname[100];
 
@@ -25,6 +24,8 @@ void PrintError( FlyCapture2::Error error )
 
 unsigned __int64 RunSingleCamera(int i, unsigned __int64 numImages)
 {	
+	FlyCapture2::Error error;
+
 	unsigned __int64 frameNumber;
 	double stamp;
 	FlyCapture2::Image rawImage;
@@ -71,6 +72,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	Format7Info fmt7Info;
 	bool supported;
 	
+	FlyCapture2::Error error;
     FlyCapture2::PGRGuid guid;
     FlyCapture2::BusManager busMgr;
     unsigned int numCameras;
