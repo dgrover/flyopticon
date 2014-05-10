@@ -126,12 +126,6 @@ int RunSingleCamera(int i, int numImages)
 					unsigned int rowBytes = (double)dImage.GetReceivedDataSize() / (double)dImage.GetRows();
 					Mat frame = Mat(dImage.GetRows(), dImage.GetCols(), CV_8UC1, dImage.GetData(), rowBytes);		
 						
-					//int width=frame.size().width;
-					//int height=frame.size().height;
-
-					//line(frame, Point((width/2)-50,height/2), Point((width/2)+50, height/2), 255);  //crosshair horizontal
-					//line(frame, Point(width/2,(height/2)-50), Point(width/2,(height/2)+50), 255);  //crosshair vertical
-
 					imshow(wname[i], frame);
 					waitKey(1);
 					
