@@ -495,6 +495,15 @@ int _tmain(int argc, _TCHAR* argv[])
 			return -1;
 		}  
 #endif
+		// Power off the camera
+		const unsigned int k_cameraPower = 0x610;
+		const unsigned int k_powerVal = 0x00000000;
+		error  = ppCameras[i]->WriteRegister( k_cameraPower, k_powerVal );
+		if (error != PGRERROR_OK)
+		{
+			PrintError( error );
+			return -1;
+		}
 
 		// Disconnect the camera
 		ppCameras[i]->Disconnect();
