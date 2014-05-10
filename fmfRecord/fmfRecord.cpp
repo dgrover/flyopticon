@@ -2,15 +2,26 @@
 //
 #include "stdafx.h"
 
+#include <FlyCapture2.h>
+#include <omp.h>
+#include <queue>
+
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+
 #define TRIGGER_CAMERA	1
 
+using namespace std;
 using namespace FlyCapture2;
+using namespace cv;
 
 FILE **fout;
 FILE *flog;
 FlyCapture2::Camera** ppCameras;
 char fname[10][100];
 char flogname[100];
+
+char wname[10][100];
 
 void PrintCameraInfo( FlyCapture2::CameraInfo* pCamInfo )
 {
@@ -22,44 +33,113 @@ void PrintError( FlyCapture2::Error error )
     error.PrintErrorTrace();
 }
 
-unsigned __int64 RunSingleCamera(int i, unsigned __int64 numImages)
+int RunSingleCamera(int i, int numImages)
 {	
+	int frameNumber = 0;
+	FlyCapture2::Image rawImage;
 	FlyCapture2::Error error;
 
-	unsigned __int64 frameNumber;
-	double stamp;
-	FlyCapture2::Image rawImage;
-	
+	bool stream = true;
+
 	// Create a converted image
 	FlyCapture2::Image convertedImage;
-
 	FlyCapture2::TimeStamp timestamp;
+
+	queue <int> frameCount;
+	queue <Image> rawImageStream;
+	queue <Image> dispImageStream;
+	queue <TimeStamp> rawTimeStamps;
 	
-	// press [ESC] to exit from continuous streaming mode
-	for (frameNumber=0; frameNumber != numImages; frameNumber++) 
+
+	#pragma omp parallel sections
 	{
-			// Start capturing images
-			error = ppCameras[i]->RetrieveBuffer( &rawImage );
-
-			//get image timestamp
-			timestamp = rawImage.GetTimeStamp();
-			stamp = (double) timestamp.seconds;
-			
-			// Convert the raw image
-			error = rawImage.Convert( FlyCapture2::PIXEL_FORMAT_MONO8, &convertedImage );
-				
-			if (error != FlyCapture2::PGRERROR_OK)
+		#pragma omp section
+		{
+			// press [ESC] to exit from continuous streaming mode
+			while (stream)
 			{
-				PrintError( error );
-			}
+					// Start capturing images
+					error = ppCameras[i]->RetrieveBuffer( &rawImage );
 
-			fwrite(&stamp, sizeof(double), 1, fout[i]);
-			fwrite(convertedImage.GetData(), convertedImage.GetDataSize(), 1, fout[i]);
+					//get image timestamp
+					timestamp = rawImage.GetTimeStamp();
 
-			fprintf(flog, "Cam %d - Frame %d - TimeStamp [%d %d]\n", i, frameNumber, timestamp.seconds, timestamp.microSeconds);
+					// Convert the raw image
+					error = rawImage.Convert( FlyCapture2::PIXEL_FORMAT_MONO8, &convertedImage );
 						
-			if (GetAsyncKeyState(VK_ESCAPE))
-				break;
+					if (error != FlyCapture2::PGRERROR_OK)
+					{
+						PrintError( error );
+					}
+
+					#pragma omp critical
+					{
+						dispImageStream.push(convertedImage);
+						frameCount.push(frameNumber);
+						rawImageStream.push(convertedImage);
+						rawTimeStamps.push(timestamp);
+					}
+					
+					frameNumber++;
+
+					if ( GetAsyncKeyState(VK_ESCAPE) || frameNumber == numImages )
+						stream = false;
+			}
+		}
+
+		#pragma omp section
+		{
+			while (stream || !rawImageStream.empty())
+			{
+				if (!rawImageStream.empty())
+				{
+					Image tImage = rawImageStream.front();
+					TimeStamp tStamp = rawTimeStamps.front();
+
+					double dtStamp = (double) tStamp.seconds;
+
+					fwrite(&dtStamp, sizeof(double), 1, fout[i]);
+					fwrite(tImage.GetData(), tImage.GetDataSize(), 1, fout[i]);
+
+					fprintf(flog, "Cam %d - Frame %d - TimeStamp [%d %d]\n", i, frameCount.front(), tStamp.seconds, tStamp.microSeconds);
+
+					#pragma omp critical
+					{
+						frameCount.pop();
+						rawImageStream.pop();
+						rawTimeStamps.pop();
+					}
+				}
+			}
+		}
+
+		#pragma omp section
+		{
+			while (stream)
+			{
+				if (!dispImageStream.empty())
+				{
+					Image dImage;
+					dImage.DeepCopy(&dispImageStream.back());
+					
+					// convert to OpenCV Mat
+					unsigned int rowBytes = (double)dImage.GetReceivedDataSize() / (double)dImage.GetRows();
+					Mat frame = Mat(dImage.GetRows(), dImage.GetCols(), CV_8UC1, dImage.GetData(), rowBytes);		
+						
+					//int width=frame.size().width;
+					//int height=frame.size().height;
+
+					//line(frame, Point((width/2)-50,height/2), Point((width/2)+50, height/2), 255);  //crosshair horizontal
+					//line(frame, Point(width/2,(height/2)-50), Point(width/2,(height/2)+50), 255);  //crosshair vertical
+
+					imshow(wname[i], frame);
+					waitKey(1);
+					
+					#pragma omp critical
+					dispImageStream = queue<Image>();
+				}
+			}
+		}
 	}
 
 	return frameNumber;	//return frame number in the event that [ESC] was pressed to stop camera streaming before set nframes was reached
@@ -67,12 +147,13 @@ unsigned __int64 RunSingleCamera(int i, unsigned __int64 numImages)
 
 int _tmain(int argc, _TCHAR* argv[])
 {
+	FlyCapture2::Error error;
+	
 	const Mode k_fmt7Mode = MODE_0;
     const PixelFormat k_fmt7PixFmt = PIXEL_FORMAT_RAW8;
 	Format7Info fmt7Info;
 	bool supported;
 	
-	FlyCapture2::Error error;
     FlyCapture2::PGRGuid guid;
     FlyCapture2::BusManager busMgr;
     unsigned int numCameras;
@@ -142,6 +223,40 @@ int _tmain(int argc, _TCHAR* argv[])
 			return -1;
 		}
 
+		const unsigned int millisecondsToSleep = 100;
+		unsigned int regVal = 0;
+		unsigned int retries = 10;
+
+		// Wait for camera to complete power-up
+		do 
+		{
+#if defined(WIN32) || defined(WIN64)
+			Sleep(millisecondsToSleep);    
+#else
+			usleep(millisecondsToSleep * 1000);
+#endif
+			error = ppCameras[i]->ReadRegister(k_cameraPower, &regVal);
+			if (error == FlyCapture2::PGRERROR_TIMEOUT)
+			{
+				// ignore timeout errors, camera may not be responding to
+				// register reads during power-up
+			}
+			else if (error != FlyCapture2::PGRERROR_OK)
+			{
+				PrintError( error );
+				return -1;
+			}
+
+			retries--;
+		} while ((regVal & k_powerVal) == 0 && retries > 0);
+
+		// Check for timeout errors after retrying
+		if (error == FlyCapture2::PGRERROR_TIMEOUT)
+		{
+			PrintError( error );
+			return -1;
+		}
+
         // Get the camera information
         FlyCapture2::CameraInfo camInfo;
         error = ppCameras[i]->GetCameraInfo( &camInfo );
@@ -206,7 +321,6 @@ int _tmain(int argc, _TCHAR* argv[])
 			return -1;
 		}
 
-#if TRIGGER_CAMERA
 		//Lower shutter speed for fast triggering
 		FlyCapture2::Property pProp;
 
@@ -223,6 +337,8 @@ int _tmain(int argc, _TCHAR* argv[])
             PrintError( error );
             return -1;
         }
+
+#if TRIGGER_CAMERA
 
 		// Check for external trigger support
 		TriggerModeInfo triggerModeInfo;
@@ -300,6 +416,8 @@ int _tmain(int argc, _TCHAR* argv[])
 					return -1;
 				}
 		}
+
+		sprintf_s(wname[i], "camera view %d", i);
     }
 	
 	//Starting individual cameras
@@ -329,10 +447,11 @@ int _tmain(int argc, _TCHAR* argv[])
 	printf("\nGrabbing ...\n");
 
 	//OpenMP parallel execution of camera streaming and recording to uncompressed fmf format videos
+	omp_set_nested(1);
 	#pragma omp parallel for num_threads(numCameras)
     for (int i = 0; i < numCameras; i++ )
     {
-		nframesRun = RunSingleCamera(i, nframes);	
+		nframesRun = (unsigned __int64)RunSingleCamera(i, nframes);	
     }
 
 	printf( "\nFinished grabbing %d images\n", nframesRun );

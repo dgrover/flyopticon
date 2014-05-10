@@ -12,9 +12,5 @@
 #include <stdlib.h>
 #include <tchar.h>
 
-#include <FlyCapture2.h>
-#include <omp.h>
-
-
 
 // TODO: reference additional headers your program requires here
