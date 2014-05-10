@@ -10,6 +10,8 @@
 #include <opencv2/highgui/highgui.hpp>
 
 #define TRIGGER_CAMERA	1
+#define DISPLAY 1
+#define SAVE 1
 
 using namespace std;
 using namespace FlyCapture2;
@@ -93,6 +95,7 @@ int RunSingleCamera(int i, int numImages)
 			{
 				if (!rawImageStream.empty())
 				{
+#if SAVE
 					Image tImage = rawImageStream.front();
 					TimeStamp tStamp = rawTimeStamps.front();
 
@@ -102,7 +105,7 @@ int RunSingleCamera(int i, int numImages)
 					fwrite(tImage.GetData(), tImage.GetDataSize(), 1, fout[i]);
 
 					fprintf(flog, "Cam %d - Frame %d - TimeStamp [%d %d]\n", i, frameCount.front(), tStamp.seconds, tStamp.microSeconds);
-
+#endif
 					#pragma omp critical
 					{
 						frameCount.pop();
@@ -119,6 +122,7 @@ int RunSingleCamera(int i, int numImages)
 			{
 				if (!dispImageStream.empty())
 				{
+#if DISPLAY
 					Image dImage;
 					dImage.DeepCopy(&dispImageStream.back());
 					
@@ -128,7 +132,7 @@ int RunSingleCamera(int i, int numImages)
 						
 					imshow(wname[i], frame);
 					waitKey(1);
-					
+#endif			
 					#pragma omp critical
 					dispImageStream = queue<Image>();
 				}
@@ -372,7 +376,8 @@ int _tmain(int argc, _TCHAR* argv[])
 			return -1;
 		}
 #endif
-		
+
+#if SAVE
 		//settings for version 1.0 fmf header
 		fmfVersion = 1;
 		sizeHeight = fmt7ImageSettings.height;
@@ -410,8 +415,12 @@ int _tmain(int argc, _TCHAR* argv[])
 					return -1;
 				}
 		}
+#endif
 
+#if DISPLAY
 		sprintf_s(wname[i], "camera view %d", i);
+#endif
+
     }
 	
 	//Starting individual cameras
@@ -452,6 +461,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	
 	for (unsigned int i = 0; i < numCameras; i++ )
     {
+#if SAVE
 		//check if number of frames streamed from the camera were the same as what was initially set
 		if (nframesRun != nframes)
 		{
@@ -462,7 +472,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		
 		// close fmf flies
 		fclose(fout[i]);
-
+#endif
 		// Stop capturing images       
 		ppCameras[i]->StopCapture();
 		if (error != FlyCapture2::PGRERROR_OK)
@@ -471,7 +481,9 @@ int _tmain(int argc, _TCHAR* argv[])
 			return -1;
 		}  
 
+#if SAVE
 		fclose(flog);
+#endif
 
 #if TRIGGER_CAMERA
 	    // Turn off trigger mode
