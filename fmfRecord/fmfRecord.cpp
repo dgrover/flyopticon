@@ -9,9 +9,9 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-#define TRIGGER_CAMERA	1
+#define TRIGGER_CAMERA 1
 #define DISPLAY 1
-#define SAVE 1
+#define SAVE 0
 
 using namespace std;
 using namespace FlyCapture2;
@@ -336,6 +336,20 @@ int _tmain(int argc, _TCHAR* argv[])
             return -1;
         }
 
+		pProp.type = GAIN;
+		pProp.absControl = true;
+		pProp.onePush = false;
+		pProp.onOff = true;
+		pProp.autoManualMode = false;
+		pProp.absValue = 18.062;
+
+		error = ppCameras[i]->SetProperty( &pProp );
+        if (error != PGRERROR_OK)
+        {
+            PrintError( error );
+            return -1;
+        }
+
 #if TRIGGER_CAMERA
 
 		// Check for external trigger support
@@ -435,17 +449,17 @@ int _tmain(int argc, _TCHAR* argv[])
 		}
 	}
 
-	//Retrieve frame rate property
-	Property frmRate;
-	frmRate.type = FRAME_RATE;
-	error = ppCameras[0]->GetProperty( &frmRate );
-	if (error != PGRERROR_OK)
-	{
-	    PrintError( error );
-	    return -1;
-	}
+	////Retrieve frame rate property
+	//Property frmRate;
+	//frmRate.type = FRAME_RATE;
+	//error = ppCameras[0]->GetProperty( &frmRate );
+	//if (error != PGRERROR_OK)
+	//{
+	//    PrintError( error );
+	//    return -1;
+	//}
 
-	 printf( "\nFrame rate is %3.2f fps\n", frmRate.absValue );
+	// printf( "\nFrame rate is %3.2f fps\n", frmRate.absValue );
 
 	printf("\nGrabbing ...\n");
 
