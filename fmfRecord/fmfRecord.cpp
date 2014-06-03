@@ -12,6 +12,7 @@
 #define TRIGGER_CAMERA 1
 #define DISPLAY 1
 #define SAVE 0
+#define POWER 0
 
 using namespace std;
 using namespace FlyCapture2;
@@ -211,6 +212,7 @@ int _tmain(int argc, _TCHAR* argv[])
             return -1;
         }
 
+#if POWER
 		// Power on the camera
 		const unsigned int k_cameraPower = 0x610;
 		const unsigned int k_powerVal = 0x80000000;
@@ -254,6 +256,7 @@ int _tmain(int argc, _TCHAR* argv[])
 			PrintError( error );
 			return -1;
 		}
+#endif
 
         // Get the camera information
         FlyCapture2::CameraInfo camInfo;
@@ -509,6 +512,8 @@ int _tmain(int argc, _TCHAR* argv[])
 			return -1;
 		}  
 #endif
+
+#if POWER
 		// Power off the camera
 		const unsigned int k_cameraPower = 0x610;
 		const unsigned int k_powerVal = 0x00000000;
@@ -518,6 +523,7 @@ int _tmain(int argc, _TCHAR* argv[])
 			PrintError( error );
 			return -1;
 		}
+#endif
 
 		// Disconnect the camera
 		ppCameras[i]->Disconnect();
