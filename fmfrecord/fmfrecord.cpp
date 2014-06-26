@@ -2,10 +2,11 @@
 //
 #include "stdafx.h"
 
-#define TRIGGER_CAMERA 1
+#define CAM_TRIGGER_CTRL 1
+#define CAM_POWER_CTRL 0
+
 #define DISPLAY 1
 #define SAVE 0
-#define POWER 0
 
 using namespace std;
 using namespace FlyCapture2;
@@ -205,7 +206,7 @@ int _tmain(int argc, _TCHAR* argv[])
             return -1;
         }
 
-#if POWER
+#if CAM_POWER_CTRL
 		// Power on the camera
 		const unsigned int k_cameraPower = 0x610;
 		const unsigned int k_powerVal = 0x80000000;
@@ -346,7 +347,7 @@ int _tmain(int argc, _TCHAR* argv[])
             return -1;
         }
 
-#if TRIGGER_CAMERA
+#if CAM_TRIGGER_CTRL
 
 		// Check for external trigger support
 		TriggerModeInfo triggerModeInfo;
@@ -495,7 +496,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		fclose(flog);
 #endif
 
-#if TRIGGER_CAMERA
+#if CAM_TRIGGER_CTRL
 	    // Turn off trigger mode
 		triggerMode.onOff = false;
 		error = ppCameras[i]->SetTriggerMode( &triggerMode );
@@ -506,7 +507,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		}  
 #endif
 
-#if POWER
+#if CAM_POWER_CTRL
 		// Power off the camera
 		const unsigned int k_cameraPower = 0x610;
 		const unsigned int k_powerVal = 0x00000000;
