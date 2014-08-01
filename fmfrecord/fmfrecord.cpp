@@ -2,7 +2,7 @@
 //
 #include "stdafx.h"
 
-#define CAM_TRIGGER_CTRL 1
+#define CAM_TRIGGER_CTRL 0
 #define CAM_POWER_CTRL 0
 
 #define DISPLAY 1
@@ -395,7 +395,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		sizeWidth = fmt7ImageSettings.width;
 		bytesPerChunk = sizeHeight*sizeWidth + sizeof(double);
 
-		sprintf_s(fname[i], "E:\\Cam%d-%d%02d%02dT%02d%02d%02d.fmf", i, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+		sprintf_s(fname[i], "D:\\Cam%d-%d%02d%02dT%02d%02d%02d.fmf", i, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
 		remove(fname[i]);
 		
 		fout[i] = fopen(fname[i], "wb");
@@ -415,7 +415,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
 		if (i == 0)
 		{
-				sprintf_s(flogname, "E:\\log-%d%02d%02dT%02d%02d%02d.txt", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+				sprintf_s(flogname, "D:\\log-%d%02d%02dT%02d%02d%02d.txt", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
 				remove(flogname);
 		
 				flog = fopen(flogname, "w");
