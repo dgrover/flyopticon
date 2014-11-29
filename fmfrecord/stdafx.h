@@ -9,15 +9,20 @@
 
 #include <windows.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <tchar.h>
+#include <vector>
 
-#include <FlyCapture2.h>
 #include <omp.h>
 #include <queue>
 
+#include "FlyCapture2.h"
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+
+#include "fmfwriter.h"
+#include "pgrcam.h"
+
 
 
 // TODO: reference additional headers your program requires here
