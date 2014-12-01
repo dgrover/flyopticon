@@ -21,10 +21,10 @@ int FmfWriter::Open()
 	SYSTEMTIME st;
 	GetLocalTime(&st);
 
-	sprintf_s(fname, "cam-%d-%d%02d%02dT%02d%02d%02d.fmf", id, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+	sprintf_s(fname, "C:\\Data\\cam%d-%d%02d%02dT%02d%02d%02d.fmf", id, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
 	remove(fname);
 
-	sprintf_s(flogname, "cam-%d-log-%d%02d%02dT%02d%02d%02d.txt", id, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+	sprintf_s(flogname, "C:\\Data\\cam%d-log-%d%02d%02dT%02d%02d%02d.txt", id, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
 	remove(flogname);
 
 	fopen_s(&fp, fname, "wb");

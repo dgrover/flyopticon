@@ -37,8 +37,8 @@ int _tmain(int argc, _TCHAR* argv[])
 		fcam[i].id = i;
 		error = fcam[i].Connect(guid);
 		error = fcam[i].SetCameraParameters(imageWidth, imageHeight);
-		//error = fcam[i].SetProperty(SHUTTER, 0.006);
-		//error = fcam[i].SetProperty(GAIN, 0.0);
+		error = fcam[i].SetProperty(SHUTTER, 6.657);
+		error = fcam[i].SetProperty(GAIN, 0.0);
 		//error = fcam[i].SetTrigger();
 		error = fcam[i].Start();
 
