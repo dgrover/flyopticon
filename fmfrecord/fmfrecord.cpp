@@ -28,6 +28,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	vector<PGRcam> fcam(numCameras);
 	vector<FmfWriter> fout(numCameras);
+	vector<string> window_name(numCameras);
 
 	//Initialize cameras
 	for (int i = 0; i < numCameras; i++)
@@ -35,6 +36,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		error = busMgr.GetCameraFromIndex(i, &guid);
 		
 		fcam[i].id = i;
+		window_name[i] = "Camera " + to_string(i);
 		error = fcam[i].Connect(guid);
 		error = fcam[i].SetCameraParameters(imageWidth, imageHeight);
 		error = fcam[i].SetProperty(SHUTTER, 6.657);
@@ -49,6 +51,8 @@ int _tmain(int argc, _TCHAR* argv[])
 		}
 
 	}
+
+	printf("\nPress [F1] to start/stop recording. Press [ESC] to exit.\n\n");
 
 	omp_set_nested(1);
 	#pragma omp parallel for num_threads(numCameras)
@@ -146,7 +150,7 @@ int _tmain(int argc, _TCHAR* argv[])
 				{
 					if (!dispStream.empty())
 					{
-						imshow(string("image %d", i), dispStream.back());
+						imshow(window_name[i], dispStream.back());
 
 						#pragma omp critical
 						{
@@ -157,16 +161,14 @@ int _tmain(int argc, _TCHAR* argv[])
 					waitKey(1);
 
 					if (!stream)
-					{
-						destroyWindow(string("image %d", i));
 						break;
-					}
 				}
 			}
 
 		}
 	}
 
+	destroyAllWindows();
 
 	for (unsigned int i = 0; i < numCameras; i++)
 	{
