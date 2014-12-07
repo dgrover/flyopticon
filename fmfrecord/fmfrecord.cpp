@@ -9,7 +9,7 @@ using namespace cv;
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	int imageWidth = 1280, imageHeight = 1024;
+	int imageWidth = 1024, imageHeight = 1024;
 
 	BusManager busMgr;
 	unsigned int numCameras;
