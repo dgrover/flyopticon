@@ -39,9 +39,9 @@ int _tmain(int argc, _TCHAR* argv[])
 		window_name[i] = "Camera " + to_string(i);
 		error = fcam[i].Connect(guid);
 		error = fcam[i].SetCameraParameters(imageWidth, imageHeight);
-		error = fcam[i].SetProperty(SHUTTER, 6.657);
-		error = fcam[i].SetProperty(GAIN, 0.0);
-		//error = fcam[i].SetTrigger();
+		error = fcam[i].SetProperty(SHUTTER, 1.003);
+		error = fcam[i].SetProperty(GAIN, 3.970);
+		error = fcam[i].SetTrigger();
 		error = fcam[i].Start();
 
 		if (error != PGRERROR_OK)
