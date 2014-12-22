@@ -3,7 +3,6 @@
 
 #include "stdafx.h"
 
-
 using namespace std;
 using namespace FlyCapture2;
 using namespace cv;
@@ -29,6 +28,8 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	vector<PGRcam> fcam(numCameras);
 	vector<FmfWriter> fout(numCameras);
+
+	vector<queue <Point2f>> pts(numCameras);
 	
 	vector<string> window_name(numCameras);
 	vector<string> mask_window_name(numCameras);
@@ -78,8 +79,8 @@ int _tmain(int argc, _TCHAR* argv[])
 		{
 			#pragma omp section
 			{
-				FlyCapture2::Image img;
-				FlyCapture2::TimeStamp stamp;
+				Image img;
+				TimeStamp stamp;
 								
 				Mat frame, mask;
 				Ptr<BackgroundSubtractor> pMOG2;
@@ -87,6 +88,8 @@ int _tmain(int argc, _TCHAR* argv[])
 
 				Mat erodeElement = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
 				Mat dilateElement = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
+
+				Point2f pt;
 
 				while (true)
 				{
@@ -103,6 +106,8 @@ int _tmain(int argc, _TCHAR* argv[])
 
 					findContours(mask, contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
 
+					pt = Point2f(-1, -1);
+
 					// Get the moments and mass centers
 					vector<Moments> mu(contours.size());
 					vector<Point2f> mc(contours.size());
@@ -112,9 +117,9 @@ int _tmain(int argc, _TCHAR* argv[])
 						//drawContours(mask, contours, i, Scalar(255, 255, 255), -1, 8, vector<Vec4i>(), 0, Point());
 						mu[i] = moments(contours[i], false);
 						mc[i] = Point2f(mu[i].m10 / mu[i].m00, mu[i].m01 / mu[i].m00);
-
-						if (mc.size() > 0)
-							circle(frame, mc[i], 1, Scalar(255, 255, 255), -1, 8);
+						circle(frame, mc[i], 1, Scalar(255, 255, 255), -1, 8);
+						
+						pt = mc[i];
 					}
 
 					#pragma omp critical
@@ -124,6 +129,8 @@ int _tmain(int argc, _TCHAR* argv[])
 
 						imageStream.push(img);
 						timeStamps.push(stamp);
+
+						pts[i].push(pt);
 					}
 
 					if (GetAsyncKeyState(VK_F1))
@@ -141,8 +148,6 @@ int _tmain(int argc, _TCHAR* argv[])
 						stream = false;
 						break;
 					}
-
-					waitKey(1);
 				}
 			}
 
@@ -179,7 +184,7 @@ int _tmain(int argc, _TCHAR* argv[])
 						}
 					}
 
-					if (i == 0)
+					#pragma omp single
 						printf("Recording buffer size %06d, Frames written %06d\r", imageStream.size(), fout[i].nframes);
 
 					if (imageStream.size() == 0 && !stream)
