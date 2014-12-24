@@ -45,8 +45,8 @@ int _tmain(int argc, _TCHAR* argv[])
 
 		error = fcam[i].Connect(guid);
 		error = fcam[i].SetCameraParameters(imageWidth, imageHeight);
-		error = fcam[i].SetProperty(SHUTTER, 1.003);
-		error = fcam[i].SetProperty(GAIN, 15.497);
+		error = fcam[i].SetProperty(SHUTTER, 3.999);
+		error = fcam[i].SetProperty(GAIN, 0.0);
 		error = fcam[i].SetTrigger();
 		error = fcam[i].Start();
 
@@ -75,6 +75,9 @@ int _tmain(int argc, _TCHAR* argv[])
 		queue <Image> imageStream;
 		queue <TimeStamp> timeStamps;
 
+		Mat erodeElement = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
+		Mat dilateElement = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
+
 		#pragma omp parallel sections num_threads(3)
 		{
 			#pragma omp section
@@ -85,9 +88,6 @@ int _tmain(int argc, _TCHAR* argv[])
 				Mat frame, mask;
 				Ptr<BackgroundSubtractor> pMOG2;
 				pMOG2 = createBackgroundSubtractorMOG2();
-
-				Mat erodeElement = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
-				Mat dilateElement = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
 
 				Point2f pt;
 
@@ -112,14 +112,14 @@ int _tmain(int argc, _TCHAR* argv[])
 					vector<Moments> mu(contours.size());
 					vector<Point2f> mc(contours.size());
 
-					for (int i = 0; i < contours.size(); i++)
+					for (int j = 0; j < contours.size(); j++)
 					{
 						//drawContours(mask, contours, i, Scalar(255, 255, 255), -1, 8, vector<Vec4i>(), 0, Point());
-						mu[i] = moments(contours[i], false);
-						mc[i] = Point2f(mu[i].m10 / mu[i].m00, mu[i].m01 / mu[i].m00);
-						circle(frame, mc[i], 1, Scalar(255, 255, 255), -1, 8);
+						mu[j] = moments(contours[j], false);
+						mc[j] = Point2f(mu[j].m10 / mu[j].m00, mu[j].m01 / mu[j].m00);
+						circle(frame, mc[j], 1, Scalar(255, 255, 255), -1, 8);
 						
-						pt = mc[i];
+						pt = mc[j];
 					}
 
 					#pragma omp critical
@@ -184,7 +184,7 @@ int _tmain(int argc, _TCHAR* argv[])
 						}
 					}
 
-					#pragma omp single
+					if (i==0)
 						printf("Recording buffer size %06d, Frames written %06d\r", imageStream.size(), fout[i].nframes);
 
 					if (imageStream.size() == 0 && !stream)
@@ -198,8 +198,8 @@ int _tmain(int argc, _TCHAR* argv[])
 				{
 					if (!dispStream.empty() && !dispMask.empty())
 					{
-						imshow(window_name[i], dispStream.back());
-						//imshow(mask_window_name[i], dispMask.back());
+						imshow(window_name[i], dispStream.front());
+						//imshow(mask_window_name[i], dispMask.front());
 
 						#pragma omp critical
 						{

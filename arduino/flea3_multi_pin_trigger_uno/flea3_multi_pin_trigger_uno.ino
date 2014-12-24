@@ -1,14 +1,15 @@
-// TTL pulse to Arduino Uno pins 3,5,7
-//set Port D pins 3,5,7 as OUTPUT
+// TTL pulse to Arduino Uno pins 5,7 at 100Hz
+//set Port D pins 5,7 as OUTPUT
+
 void setup()
 {
-  DDRD = B10101000;
+  DDRD = B10100000;
 }
 
 void loop()
 {
-  PORTD = B10101000; //Set pins HIGH
-  delayMicroseconds(3333);
+  PORTD = B10100000; //Set pins HIGH
+  delayMicroseconds(5000);
   PORTD = B00000000; //Set pins LOW
-  delayMicroseconds(3333);
+  delayMicroseconds(5000);
 }

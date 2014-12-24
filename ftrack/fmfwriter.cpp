@@ -93,10 +93,7 @@ void FmfWriter::WriteFrame(TimeStamp st, Image img)
 
 void FmfWriter::WriteLog(TimeStamp st)
 {
-	SYSTEMTIME wt;
-	GetLocalTime(&wt);
-
-	fprintf(flog, "Cam %d - Frame %d - System Time [%02d:%02d:%02d] - TimeStamp [%d %d]\n", id, nframes, wt.wHour, wt.wMinute, wt.wSecond, st.seconds, st.microSeconds);
+	fprintf(flog, "Cam %d - Frame %d - TimeStamp [%d %d %d]\n", id, nframes, st.cycleSeconds, st.cycleCount, st.cycleOffset);
 }
 
 int FmfWriter::IsOpen()
