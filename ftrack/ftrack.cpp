@@ -7,6 +7,36 @@ using namespace std;
 using namespace FlyCapture2;
 using namespace cv;
 
+float dist(Point2f p1, Point2f p2)
+{
+	float dx = p2.x - p1.x;
+	float dy = p2.y - p1.y;
+	return(sqrt(dx*dx + dy*dy));
+}
+
+int findClosestPoint(Point2f pt, vector<Point2f> nbor)
+{
+	int fly_index = 0;
+	if (nbor.size() == 1)
+		return fly_index;
+	else
+	{
+		float fly_dist = dist(pt, nbor[0]);
+
+		for (int i = 1; i < nbor.size(); i++)
+		{
+			float res = dist(pt, nbor[i]);
+			if (res < fly_dist)
+			{
+				fly_dist = res;
+				fly_index = i;                //Store the index of nearest point
+			}
+		}
+
+		return fly_index;
+	}
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
 	int imageWidth = 1024, imageHeight = 1024;
@@ -26,207 +56,259 @@ int _tmain(int argc, _TCHAR* argv[])
 		return -1;
 	}
 
-	vector<PGRcam> fcam(numCameras);
-	vector<FmfWriter> fout(numCameras);
-
-	vector<queue <Point2f>> pts(numCameras);
-	
-	vector<string> window_name(numCameras);
-	vector<string> mask_window_name(numCameras);
+	PGRcam lcam, rcam;
+	FmfWriter lout, rout;
 
 	//Initialize cameras
-	for (int i = 0; i < numCameras; i++)
+	error = busMgr.GetCameraFromIndex(0, &guid);
+
+	error = lcam.Connect(guid);
+	error = lcam.SetCameraParameters(imageWidth, imageHeight);
+	error = lcam.SetProperty(SHUTTER, 3.999);
+	error = lcam.SetProperty(GAIN, 0.0);
+	error = lcam.SetTrigger();
+	error = lcam.Start();
+
+	error = busMgr.GetCameraFromIndex(1, &guid);
+
+	error = rcam.Connect(guid);
+	error = rcam.SetCameraParameters(imageWidth, imageHeight);
+	error = rcam.SetProperty(SHUTTER, 3.999);
+	error = rcam.SetProperty(GAIN, 0.0);
+	error = rcam.SetTrigger();
+	error = rcam.Start();
+
+	if (error != PGRERROR_OK)
 	{
-		error = busMgr.GetCameraFromIndex(i, &guid);
-
-		fcam[i].id = i;
-		window_name[i] = "Camera " + to_string(i);
-		mask_window_name[i] = "Mask " + to_string(i);
-
-		error = fcam[i].Connect(guid);
-		error = fcam[i].SetCameraParameters(imageWidth, imageHeight);
-		error = fcam[i].SetProperty(SHUTTER, 3.999);
-		error = fcam[i].SetProperty(GAIN, 0.0);
-		error = fcam[i].SetTrigger();
-		error = fcam[i].Start();
-
-		if (error != PGRERROR_OK)
-		{
-			error.PrintErrorTrace();
-			return -1;
-		}
-
+		error.PrintErrorTrace();
+		return -1;
 	}
 
 	printf("\nPress [F1] to start/stop recording. Press [ESC] to exit.\n\n");
 
-	omp_set_nested(1);
-	#pragma omp parallel for num_threads(numCameras)
-	for (int i = 0; i < numCameras; i++)
+	int key_state = 0;
+
+	bool stream = true;
+	bool record = false;
+
+	queue <Mat> lFrameStream, rFrameStream;
+	queue <Mat> lMaskStream, rMaskStream;
+
+	queue <Image> lImageStream, rImageStream;
+	queue <TimeStamp> lStampStream, rStampStream;
+
+	Mat erodeElement = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
+	Mat dilateElement = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
+
+	#pragma omp parallel sections num_threads(3)
 	{
-		int key_state = 0;
-
-		bool stream = true;
-		bool record = false;
-
-		queue <Mat> dispStream;
-		queue <Mat> dispMask;
-
-		queue <Image> imageStream;
-		queue <TimeStamp> timeStamps;
-
-		Mat erodeElement = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
-		Mat dilateElement = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
-
-		#pragma omp parallel sections num_threads(3)
+		#pragma omp section
 		{
-			#pragma omp section
-			{
-				Image img;
-				TimeStamp stamp;
+			Image limg, rimg;
+			TimeStamp lstamp, rstamp;
 								
-				Mat frame, mask;
-				Ptr<BackgroundSubtractor> pMOG2;
-				pMOG2 = createBackgroundSubtractorMOG2();
+			Mat lframe, lmask, rframe, rmask;
+			Ptr<BackgroundSubtractor> lpMOG2, rpMOG2;
+				
+			lpMOG2 = createBackgroundSubtractorMOG2();
+			rpMOG2 = createBackgroundSubtractorMOG2();
 
-				Point2f pt;
+			Point2f lpt, rpt;
 
-				while (true)
+			while (true)
+			{
+				limg = lcam.GrabFrame();
+				lstamp = lcam.GetTimeStamp();
+				lframe = lcam.convertImagetoMat(limg);
+
+				rimg = rcam.GrabFrame();
+				rstamp = rcam.GetTimeStamp();
+				rframe = rcam.convertImagetoMat(rimg);
+					
+				lpMOG2->apply(lframe, lmask);
+				rpMOG2->apply(rframe, rmask);
+
+				erode(lmask, lmask, erodeElement, Point(-1, -1), 1);
+				dilate(lmask, lmask, dilateElement, Point(-1, -1), 1);
+
+				erode(rmask, rmask, erodeElement, Point(-1, -1), 1);
+				dilate(rmask, rmask, dilateElement, Point(-1, -1), 1);
+
+				vector<vector<Point>> lcontours, rcontours;
+
+				findContours(lmask, lcontours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+				findContours(rmask, rcontours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+
+				// Get the left camera moments and mass centers
+				vector<Moments> lmu(lcontours.size());
+				vector<Point2f> lmc(lcontours.size());
+
+				for (int i = 0; i < lcontours.size(); i++)
 				{
-					img = fcam[i].GrabFrame();
-					stamp = fcam[i].GetTimeStamp();
-					frame = fcam[i].convertImagetoMat(img);
+					//drawContours(lmask, lcontours, i, Scalar(255, 255, 255), -1, 8, vector<Vec4i>(), 0, Point());
+					lmu[i] = moments(lcontours[i], false);
+					lmc[i] = Point2f(lmu[i].m10 / lmu[i].m00, lmu[i].m01 / lmu[i].m00);
+				}
+				
+				if (lmc.size() > 0)
+				{
+					int lid = findClosestPoint(lpt, lmc);
+					lpt = lmc[lid];
 
-					pMOG2->apply(frame, mask);
+					circle(lframe, lpt, 1, Scalar(255, 255, 255), -1, 8);
+				}
 
-					erode(mask, mask, erodeElement, Point(-1, -1), 1);
-					dilate(mask, mask, dilateElement, Point(-1, -1), 1);
+				// Get the right camera moments and mass centers
+				vector<Moments> rmu(rcontours.size());
+				vector<Point2f> rmc(rcontours.size());
 
-					vector<vector<Point>> contours;
+				for (int i = 0; i < rcontours.size(); i++)
+				{
+					//drawContours(rmask, rcontours, i, Scalar(255, 255, 255), -1, 8, vector<Vec4i>(), 0, Point());
+					rmu[i] = moments(rcontours[i], false);
+					rmc[i] = Point2f(rmu[i].m10 / rmu[i].m00, rmu[i].m01 / rmu[i].m00);
+				}
 
-					findContours(mask, contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+				if (rmc.size() > 0)
+				{
+					int rid = findClosestPoint(rpt, rmc);
+					rpt = rmc[rid];
 
-					pt = Point2f(-1, -1);
+					circle(rframe, rpt, 1, Scalar(255, 255, 255), -1, 8);
+				}
+				
 
-					// Get the moments and mass centers
-					vector<Moments> mu(contours.size());
-					vector<Point2f> mc(contours.size());
+				#pragma omp critical
+				{
+					lFrameStream.push(lframe);
+					lMaskStream.push(lmask);
 
-					for (int j = 0; j < contours.size(); j++)
+					rFrameStream.push(rframe);
+					rMaskStream.push(rmask);
+
+					lImageStream.push(limg);
+					lStampStream.push(lstamp);
+
+					rImageStream.push(rimg);
+					rStampStream.push(rstamp);
+				}
+
+				if (GetAsyncKeyState(VK_F1))
+				{
+					if (!key_state)
+						record = !record;
+
+					key_state = 1;
+				}
+				else
+					key_state = 0;
+
+				if (GetAsyncKeyState(VK_ESCAPE))
+				{
+					stream = false;
+					break;
+				}
+			}
+		}
+
+		#pragma omp section
+		{
+			while (true)
+			{
+				if (!lImageStream.empty() && !lStampStream.empty() && !rImageStream.empty() && !rStampStream.empty())
+				{
+					if (record)
 					{
-						//drawContours(mask, contours, i, Scalar(255, 255, 255), -1, 8, vector<Vec4i>(), 0, Point());
-						mu[j] = moments(contours[j], false);
-						mc[j] = Point2f(mu[j].m10 / mu[j].m00, mu[j].m01 / mu[j].m00);
-						circle(frame, mc[j], 1, Scalar(255, 255, 255), -1, 8);
-						
-						pt = mc[j];
+						if (!lout.IsOpen())
+						{
+							lout.id = 0;
+							lout.Open();
+							lout.InitHeader(imageWidth, imageHeight);
+							lout.WriteHeader();
+						}
+
+						if (!rout.IsOpen())
+						{
+							rout.id = 1;
+							rout.Open();
+							rout.InitHeader(imageWidth, imageHeight);
+							rout.WriteHeader();
+						}
+
+						lout.WriteFrame(lStampStream.front(), lImageStream.front());
+						lout.WriteLog(lStampStream.front());
+						lout.nframes++;
+
+						rout.WriteFrame(rStampStream.front(), rImageStream.front());
+						rout.WriteLog(rStampStream.front());
+						rout.nframes++;
+					}
+					else
+					{
+						if (lout.IsOpen())
+							lout.Close();
+
+						if (rout.IsOpen())
+							rout.Close();
 					}
 
 					#pragma omp critical
 					{
-						dispStream.push(frame);
-						dispMask.push(mask);
+						lImageStream.pop();
+						lStampStream.pop();
 
-						imageStream.push(img);
-						timeStamps.push(stamp);
-
-						pts[i].push(pt);
-					}
-
-					if (GetAsyncKeyState(VK_F1))
-					{
-						if (!key_state)
-							record = !record;
-
-						key_state = 1;
-					}
-					else
-						key_state = 0;
-
-					if (GetAsyncKeyState(VK_ESCAPE))
-					{
-						stream = false;
-						break;
+						rImageStream.pop();
+						rStampStream.pop();
 					}
 				}
-			}
 
-			#pragma omp section
+				printf("Recording buffer size %06d, Frames written %06d\r", lImageStream.size(), lout.nframes);
+
+				if (lImageStream.size() == 0 && rImageStream.size() == 0 && !stream)
+					break;
+			}
+		}
+
+		#pragma omp section
+		{
+			while (true)
 			{
-				while (true)
+				if (!lFrameStream.empty() && !lMaskStream.empty() && !rFrameStream.empty() && !rMaskStream.empty())
 				{
-					if (!imageStream.empty())
+					imshow("camera left", lFrameStream.front());
+					imshow("mask left", lMaskStream.front());
+
+					imshow("camera right", rFrameStream.front());
+					imshow("mask right", rMaskStream.front());
+
+					#pragma omp critical
 					{
-						if (record)
-						{
-							if (!fout[i].IsOpen())
-							{
-								fout[i].id = i;
-								fout[i].Open();
-								fout[i].InitHeader(imageWidth, imageHeight);
-								fout[i].WriteHeader();
-							}
+						lFrameStream = queue<Mat>();
+						lMaskStream = queue<Mat>();
 
-							fout[i].WriteFrame(timeStamps.front(), imageStream.front());
-							fout[i].WriteLog(timeStamps.front());
-							fout[i].nframes++;
-						}
-						else
-						{
-							if (fout[i].IsOpen())
-								fout[i].Close();
-						}
-
-						#pragma omp critical
-						{
-							imageStream.pop();
-							timeStamps.pop();
-						}
+						rFrameStream = queue<Mat>();
+						rMaskStream = queue<Mat>();
 					}
-
-					if (i==0)
-						printf("Recording buffer size %06d, Frames written %06d\r", imageStream.size(), fout[i].nframes);
-
-					if (imageStream.size() == 0 && !stream)
-						break;
 				}
+
+				waitKey(1);
+
+				if (!stream)
+					break;
 			}
-
-			#pragma omp section
-			{
-				while (true)
-				{
-					if (!dispStream.empty() && !dispMask.empty())
-					{
-						imshow(window_name[i], dispStream.front());
-						//imshow(mask_window_name[i], dispMask.front());
-
-						#pragma omp critical
-						{
-							dispStream = queue<Mat>();
-							dispMask = queue<Mat>();
-						}
-					}
-
-					waitKey(1);
-
-					if (!stream)
-						break;
-				}
-			}
-
 		}
 	}
 
 	destroyAllWindows();
 
-	for (unsigned int i = 0; i < numCameras; i++)
-	{
-		fcam[i].Stop();
+	lcam.Stop();
+	rcam.Stop();
+	
+	if (lout.IsOpen())
+		lout.Close();
 
-		if (fout[i].IsOpen())
-			fout[i].Close();
-	}
+	if (rout.IsOpen())
+		rout.Close();
 
 	return 0;
 }
