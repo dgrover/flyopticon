@@ -39,6 +39,21 @@ int findClosestPoint(Point2f pt, vector<Point2f> nbor)
 
 int _tmain(int argc, _TCHAR* argv[])
 {
+	Mat pnts3D(1, 1, CV_64FC4);
+	Mat cam0pnts(1, 1, CV_64FC2);
+	Mat cam1pnts(1, 1, CV_64FC2);
+
+	FileStorage fs("..\\calibration\\data\\extrinsics.xml", FileStorage::READ);
+	if (!fs.isOpened())
+	{
+		printf("Failed to open file\n");
+		return -1;
+	}
+
+	Mat P1, P2;
+	fs["P1"] >> P1;
+	fs["P2"] >> P2;
+
 	int imageWidth = 1024, imageHeight = 1024;
 
 	BusManager busMgr;
@@ -61,7 +76,6 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	//Initialize cameras
 	error = busMgr.GetCameraFromIndex(0, &guid);
-
 	error = lcam.Connect(guid);
 	error = lcam.SetCameraParameters(imageWidth, imageHeight);
 	error = lcam.SetProperty(SHUTTER, 3.999);
@@ -70,7 +84,6 @@ int _tmain(int argc, _TCHAR* argv[])
 	error = lcam.Start();
 
 	error = busMgr.GetCameraFromIndex(1, &guid);
-
 	error = rcam.Connect(guid);
 	error = rcam.SetCameraParameters(imageWidth, imageHeight);
 	error = rcam.SetProperty(SHUTTER, 3.999);
@@ -152,8 +165,8 @@ int _tmain(int argc, _TCHAR* argv[])
 				
 				if (lmc.size() > 0)
 				{
-					int lid = findClosestPoint(lpt, lmc);
-					lpt = lmc[lid];
+					int id = findClosestPoint(lpt, lmc);
+					lpt = lmc[id];
 
 					circle(lframe, lpt, 1, Scalar(255, 255, 255), -1, 8);
 				}
@@ -171,12 +184,23 @@ int _tmain(int argc, _TCHAR* argv[])
 
 				if (rmc.size() > 0)
 				{
-					int rid = findClosestPoint(rpt, rmc);
-					rpt = rmc[rid];
+					int id = findClosestPoint(rpt, rmc);
+					rpt = rmc[id];
 
 					circle(rframe, rpt, 1, Scalar(255, 255, 255), -1, 8);
 				}
 				
+				cam0pnts.at<double>(0, 0) = lpt.x;
+				cam0pnts.at<double>(1, 0) = lpt.y;
+
+				cam1pnts.at<double>(0, 0) = rpt.x;
+				cam1pnts.at<double>(1, 0) = rpt.y;
+
+				triangulatePoints(P1, P2, cam0pnts, cam1pnts, pnts3D);
+
+				//printf("[%f %f]\n", cam0pnts.at<double>(0, 0), cam0pnts.at<double>(1, 0));
+				//printf("[%f %f]\n", cam1pnts.at<double>(0, 0), cam1pnts.at<double>(1, 0));
+				printf("[%f %f %f %f]\n", pnts3D.at<double>(0, 0) / pnts3D.at<double>(3, 0), pnts3D.at<double>(1, 0) / pnts3D.at<double>(3, 0), pnts3D.at<double>(2, 0) / pnts3D.at<double>(3, 0), pnts3D.at<double>(3, 0) / pnts3D.at<double>(3, 0));
 
 				#pragma omp critical
 				{
@@ -276,10 +300,10 @@ int _tmain(int argc, _TCHAR* argv[])
 				if (!lFrameStream.empty() && !lMaskStream.empty() && !rFrameStream.empty() && !rMaskStream.empty())
 				{
 					imshow("camera left", lFrameStream.front());
-					imshow("mask left", lMaskStream.front());
+					//imshow("mask left", lMaskStream.front());
 
 					imshow("camera right", rFrameStream.front());
-					imshow("mask right", rMaskStream.front());
+					//imshow("mask right", rMaskStream.front());
 
 					#pragma omp critical
 					{
