@@ -7,6 +7,9 @@ using namespace std;
 using namespace FlyCapture2;
 using namespace cv;
 
+bool stream = true;
+bool record = false;
+
 float dist(Point2f p1, Point2f p2)
 {
 	float dx = p2.x - p1.x;
@@ -100,9 +103,6 @@ int _tmain(int argc, _TCHAR* argv[])
 	printf("\nPress [F1] to start/stop recording. Press [ESC] to exit.\n\n");
 
 	int key_state = 0;
-
-	bool stream = true;
-	bool record = false;
 
 	queue <Mat> lFrameStream, rFrameStream;
 	queue <Mat> lMaskStream, rMaskStream;
@@ -200,7 +200,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
 				//printf("[%f %f]\n", cam0pnts.at<double>(0, 0), cam0pnts.at<double>(1, 0));
 				//printf("[%f %f]\n", cam1pnts.at<double>(0, 0), cam1pnts.at<double>(1, 0));
-				printf("[%f %f %f %f]\n", pnts3D.at<double>(0, 0) / pnts3D.at<double>(3, 0), pnts3D.at<double>(1, 0) / pnts3D.at<double>(3, 0), pnts3D.at<double>(2, 0) / pnts3D.at<double>(3, 0), pnts3D.at<double>(3, 0) / pnts3D.at<double>(3, 0));
+				//printf("[%f %f %f %f]\n", pnts3D.at<double>(0, 0) / pnts3D.at<double>(3, 0), pnts3D.at<double>(1, 0) / pnts3D.at<double>(3, 0), pnts3D.at<double>(2, 0) / pnts3D.at<double>(3, 0), pnts3D.at<double>(3, 0) / pnts3D.at<double>(3, 0));
 
 				#pragma omp critical
 				{
@@ -318,12 +318,14 @@ int _tmain(int argc, _TCHAR* argv[])
 				waitKey(1);
 
 				if (!stream)
+				{
+					destroyWindow("camera left");
+					destroyWindow("camera right");
 					break;
+				}
 			}
 		}
 	}
-
-	destroyAllWindows();
 
 	lcam.Stop();
 	rcam.Stop();
