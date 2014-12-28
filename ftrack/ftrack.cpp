@@ -57,16 +57,22 @@ Point3f triangulate(Mat P1, Mat P2, Point2f lpt, Point2f rpt)
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	FileStorage fs("..\\calibration\\data\\extrinsics.xml", FileStorage::READ);
-	if (!fs.isOpened())
-	{
-		printf("Failed to open file\n");
-		return -1;
-	}
-
-	Mat P1, P2;
+	FileStorage fs("..\\calibration\\data\\intrinsics.xml", FileStorage::READ);
+	Mat M1, M2, D1, D2;
+	fs["M1"] >> M1;
+	fs["M2"] >> M2;
+	fs.release();
+	
+	fs.open("..\\calibration\\data\\extrinsics.xml", FileStorage::READ);
+	Mat R, T, R1, R2, P1, P2, Q;
+	fs["R"] >> R;
+	fs["T"] >> T;
+	fs["R1"] >> R1;
+	fs["R2"] >> R2;
 	fs["P1"] >> P1;
 	fs["P2"] >> P2;
+	fs["Q"] >> Q;
+	fs.release();
 
 	int imageWidth = 1024, imageHeight = 1024;
 
