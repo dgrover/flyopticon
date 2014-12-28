@@ -24,10 +24,7 @@
     <ClInclude Include="targetver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="fmfwriter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="pgrcam.h">
+    <ClInclude Include="fmfreader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -38,10 +35,7 @@
     <ClCompile Include="ftrack.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="fmfwriter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="pgrcam.cpp">
+    <ClCompile Include="fmfreader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
