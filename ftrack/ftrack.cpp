@@ -6,6 +6,11 @@
 using namespace std;
 using namespace cv;
 
+#define drawCross( img, center, d )\
+line(img, Point(center.x - d, center.y - d), Point(center.x + d, center.y + d), Scalar(255, 255, 255));\
+line(img, Point(center.x + d, center.y - d), Point(center.x - d, center.y + d), Scalar(255, 255, 255))\
+
+
 bool stream = true;
 
 float dist(Point2f p1, Point2f p2)
@@ -55,12 +60,35 @@ Point3f triangulate(Mat P1, Mat P2, Point2f lpt, Point2f rpt)
 	return Point3f((p3D.at<double>(0, 0) / p3D.at<double>(3, 0)), (p3D.at<double>(1, 0) / p3D.at<double>(3, 0)), (p3D.at<double>(2, 0) / p3D.at<double>(3, 0)));
 }
 
+Point2f backproject3DPoint(Mat M, Mat P, Point3f point3d)
+{
+	// 3D point vector [x y z 1]'
+	cv::Mat point3d_vec = cv::Mat(4, 1, CV_64FC1);
+	point3d_vec.at<double>(0) = point3d.x;
+	point3d_vec.at<double>(1) = point3d.y;
+	point3d_vec.at<double>(2) = point3d.z;
+	point3d_vec.at<double>(3) = 1;
+
+	// 2D point vector [u v 1]'
+	cv::Mat point2d_vec = cv::Mat(4, 1, CV_64FC1);
+	point2d_vec = M * P * point3d_vec;
+
+	// Normalization of [u v]'
+	cv::Point2f point2d;
+	point2d.x = point2d_vec.at<double>(0) / point2d_vec.at<double>(2);
+	point2d.y = point2d_vec.at<double>(1) / point2d_vec.at<double>(2);
+
+	return point2d;
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
 	FileStorage fs("..\\calibration\\data\\intrinsics.xml", FileStorage::READ);
 	Mat M1, M2, D1, D2;
 	fs["M1"] >> M1;
 	fs["M2"] >> M2;
+	fs["D1"] >> D1;
+	fs["D2"] >> D2;
 	fs.release();
 	
 	fs.open("..\\calibration\\data\\extrinsics.xml", FileStorage::READ);
@@ -95,6 +123,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	rpMOG2 = createBackgroundSubtractorMOG2();
 
 	Point2f lpt, rpt;
+	Point2f backlpt, backrpt;
 	Point3f pt;
 
 	for (int imageCount = 0; imageCount < nframes; imageCount++)
@@ -131,8 +160,6 @@ int _tmain(int argc, _TCHAR* argv[])
 		{
 			int id = findClosestPoint(lpt, lmc);
 			lpt = lmc[id];
-
-			circle(lframe, lpt, 1, Scalar(255, 255, 255), -1, 8);
 		}
 
 		// Get the right camera moments and mass centers
@@ -150,13 +177,22 @@ int _tmain(int argc, _TCHAR* argv[])
 		{
 			int id = findClosestPoint(rpt, rmc);
 			rpt = rmc[id];
-
-			circle(rframe, rpt, 1, Scalar(255, 255, 255), -1, 8);
 		}
 
 		pt = triangulate(P1, P2, lpt, rpt);
 
-		printf("[%f %f %f]\n", pt.x, pt.y, pt.z);
+		backlpt = backproject3DPoint(M1, P1, pt);
+		backrpt = backproject3DPoint(M2, P2, pt);
+
+		//printf("[%f %f %f]\n", pt.x, pt.y, pt.z);
+		//printf("[%f %f %f %f]\n", lpt.x, lpt.y, backlpt.x, backlpt.y);
+		//printf("[%f %f %f %f]\n", rpt.x, rpt.y, backrpt.x, backrpt.y);
+
+		circle(lframe, lpt, 1, Scalar(255, 255, 255), -1, 8);
+		circle(rframe, rpt, 1, Scalar(255, 255, 255), -1, 8);
+
+		drawCross(lframe, backlpt, 2);
+		drawCross(rframe, backrpt, 2);
 
 		imshow("camera left", lframe);
 		//imshow("mask left", lmask);
