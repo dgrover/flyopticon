@@ -11,7 +11,6 @@ class FmfReader
 
 		unsigned __int32 fmfVersion, SizeY, SizeX;
 		unsigned __int64 bytesPerChunk, nframes;
-		long maxFramesInFile;
 		char *buf;
 
 	public:
@@ -23,7 +22,7 @@ class FmfReader
 		int Close();
 
 		int ReadHeader();
-		Mat ReadFrame(unsigned long frameIndex);
+		Mat ReadFrame(int frameIndex);
 		
 		int GetFrameCount();
 		void GetImageSize(int &imageWidth, int &imageHeight);

@@ -102,7 +102,7 @@ int _tmain(int argc, _TCHAR* argv[])
 					putText(frame[i], to_string(dtime[i]), Point(0, 10), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
 
 					if (record)
-						putText(frame[i], to_string(count), Point(1000, 10), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
+						putText(frame[i], to_string(count), Point(512, 10), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
 
 				}
 
@@ -166,7 +166,7 @@ int _tmain(int argc, _TCHAR* argv[])
 							fout[i].WriteHeader();
 						}
 
-						fout[i].WriteFrame(timeStamps[i].front(), imageStream[i].front());
+						fout[i].WriteFrame(imageStream[i].front());
 						fout[i].WriteLog(timeStamps[i].front());
 						fout[i].nframes++;
 					}

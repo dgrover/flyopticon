@@ -57,8 +57,38 @@ Point3f triangulate(Mat P1, Mat P2, Point2f lpt, Point2f rpt)
 
 	triangulatePoints(P1, P2, lp, rp, p3D);
 
-	return Point3f((p3D.at<double>(0, 0) / p3D.at<double>(3, 0)), (p3D.at<double>(1, 0) / p3D.at<double>(3, 0)), (p3D.at<double>(2, 0) / p3D.at<double>(3, 0)));
+	return Point3f((float)(p3D.at<double>(0, 0) / p3D.at<double>(3, 0)), (float)(p3D.at<double>(1, 0) / p3D.at<double>(3, 0)), (float)(p3D.at<double>(2, 0) / p3D.at<double>(3, 0)));
 }
+
+Mat triangulate_Linear_LS(Mat mat_P_l, Mat mat_P_r, Mat warped_back_l, Mat warped_back_r)
+{
+	Mat A(4, 3, CV_64FC1), b(4, 1, CV_64FC1), X(3, 1, CV_64FC1), X_homogeneous(4, 1, CV_64FC1), W(1, 1, CV_64FC1);
+	W.at<double>(0, 0) = 1.0;
+	A.at<double>(0, 0) = (warped_back_l.at<double>(0, 0) / warped_back_l.at<double>(2, 0))*mat_P_l.at<double>(2, 0) - mat_P_l.at<double>(0, 0);
+	A.at<double>(0, 1) = (warped_back_l.at<double>(0, 0) / warped_back_l.at<double>(2, 0))*mat_P_l.at<double>(2, 1) - mat_P_l.at<double>(0, 1);
+	A.at<double>(0, 2) = (warped_back_l.at<double>(0, 0) / warped_back_l.at<double>(2, 0))*mat_P_l.at<double>(2, 2) - mat_P_l.at<double>(0, 2);
+	A.at<double>(1, 0) = (warped_back_l.at<double>(1, 0) / warped_back_l.at<double>(2, 0))*mat_P_l.at<double>(2, 0) - mat_P_l.at<double>(1, 0);
+	A.at<double>(1, 1) = (warped_back_l.at<double>(1, 0) / warped_back_l.at<double>(2, 0))*mat_P_l.at<double>(2, 1) - mat_P_l.at<double>(1, 1);
+	A.at<double>(1, 2) = (warped_back_l.at<double>(1, 0) / warped_back_l.at<double>(2, 0))*mat_P_l.at<double>(2, 2) - mat_P_l.at<double>(1, 2);
+	A.at<double>(2, 0) = (warped_back_r.at<double>(0, 0) / warped_back_r.at<double>(2, 0))*mat_P_r.at<double>(2, 0) - mat_P_r.at<double>(0, 0);
+	A.at<double>(2, 1) = (warped_back_r.at<double>(0, 0) / warped_back_r.at<double>(2, 0))*mat_P_r.at<double>(2, 1) - mat_P_r.at<double>(0, 1);
+	A.at<double>(2, 2) = (warped_back_r.at<double>(0, 0) / warped_back_r.at<double>(2, 0))*mat_P_r.at<double>(2, 2) - mat_P_r.at<double>(0, 2);
+	A.at<double>(3, 0) = (warped_back_r.at<double>(1, 0) / warped_back_r.at<double>(2, 0))*mat_P_r.at<double>(2, 0) - mat_P_r.at<double>(1, 0);
+	A.at<double>(3, 1) = (warped_back_r.at<double>(1, 0) / warped_back_r.at<double>(2, 0))*mat_P_r.at<double>(2, 1) - mat_P_r.at<double>(1, 1);
+	A.at<double>(3, 2) = (warped_back_r.at<double>(1, 0) / warped_back_r.at<double>(2, 0))*mat_P_r.at<double>(2, 2) - mat_P_r.at<double>(1, 2);
+	b.at<double>(0, 0) = -((warped_back_l.at<double>(0, 0) / warped_back_l.at<double>(2, 0))*mat_P_l.at<double>(2, 3) - mat_P_l.at<double>(0, 3));
+	b.at<double>(1, 0) = -((warped_back_l.at<double>(1, 0) / warped_back_l.at<double>(2, 0))*mat_P_l.at<double>(2, 3) - mat_P_l.at<double>(1, 3));
+	b.at<double>(2, 0) = -((warped_back_r.at<double>(0, 0) / warped_back_r.at<double>(2, 0))*mat_P_r.at<double>(2, 3) - mat_P_r.at<double>(0, 3));
+	b.at<double>(3, 0) = -((warped_back_r.at<double>(1, 0) / warped_back_r.at<double>(2, 0))*mat_P_r.at<double>(2, 3) - mat_P_r.at<double>(1, 3));
+	
+	solve(A, b, X, DECOMP_SVD);
+	vconcat(X, W, X_homogeneous);
+	
+	printf("[%f %f %f %f]\n", X_homogeneous.at<double>(0, 0), X_homogeneous.at<double>(1, 0), X_homogeneous.at<double>(2, 0), X_homogeneous.at<double>(3, 0));
+	
+	return X_homogeneous;
+}
+
 
 Point2f backproject3DPoint(Mat M, Mat P, Point3f point3d)
 {
@@ -83,7 +113,7 @@ Point2f backproject3DPoint(Mat M, Mat P, Point3f point3d)
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	FileStorage fs("..\\calibration\\data\\intrinsics.xml", FileStorage::READ);
+	FileStorage fs("intrinsics.xml", FileStorage::READ);
 	Mat M1, M2, D1, D2;
 	fs["M1"] >> M1;
 	fs["M2"] >> M2;
@@ -91,15 +121,10 @@ int _tmain(int argc, _TCHAR* argv[])
 	fs["D2"] >> D2;
 	fs.release();
 	
-	fs.open("..\\calibration\\data\\extrinsics.xml", FileStorage::READ);
-	Mat R, T, R1, R2, P1, P2, Q;
-	fs["R"] >> R;
-	fs["T"] >> T;
-	fs["R1"] >> R1;
-	fs["R2"] >> R2;
+	fs.open("extrinsics.xml", FileStorage::READ);
+	Mat P1, P2;
 	fs["P1"] >> P1;
 	fs["P2"] >> P2;
-	fs["Q"] >> Q;
 	fs.release();
 
 	int imageWidth = 1024, imageHeight = 1024;
@@ -179,12 +204,28 @@ int _tmain(int argc, _TCHAR* argv[])
 			rpt = rmc[id];
 		}
 
-		pt = triangulate(P1, P2, lpt, rpt);
+		//pt = triangulate(M1*P1, M2*P2, lpt, rpt);
+		//printf("[%f %f %f]\n", pt.x, pt.y, pt.z);
+
+		Mat lp(1, 1, CV_64FC3);
+		lp.at<double>(0, 0) = lpt.x;
+		lp.at<double>(1, 0) = lpt.y;
+		lp.at<double>(2, 0) = 1;
+
+		Mat rp(1, 1, CV_64FC3);
+		rp.at<double>(0, 0) = rpt.x;
+		rp.at<double>(1, 0) = rpt.y;
+		rp.at<double>(2, 0) = 1;
+
+		Mat pt3d = triangulate_Linear_LS(M1*P1, M2*P2, lp, rp);
+
+		pt.x = pt3d.at<double>(0, 0);
+		pt.y = pt3d.at<double>(1, 0);
+		pt.z = pt3d.at<double>(2, 0);
 
 		backlpt = backproject3DPoint(M1, P1, pt);
 		backrpt = backproject3DPoint(M2, P2, pt);
 
-		//printf("[%f %f %f]\n", pt.x, pt.y, pt.z);
 		//printf("[%f %f %f %f]\n", lpt.x, lpt.y, backlpt.x, backlpt.y);
 		//printf("[%f %f %f %f]\n", rpt.x, rpt.y, backrpt.x, backrpt.y);
 
@@ -205,6 +246,8 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	lin.Close();
 	rin.Close();
+
+	getchar();
 
 	return 0;
 }

@@ -31,9 +31,9 @@ StereoCalib(const vector<string>& imagelist, Size boardSize, bool useCalibrated 
 		return;
 	}
 
-	bool displayCorners = false;//true;
-	const int maxScale = 2;
-	const float squareSize = 1.f;  // Set this to your actual square size
+	bool displayCorners = true;
+	const int maxScale = 1;
+	const float squareSize = 1.0;  // Set this to your actual square size
 	// ARRAY AND VECTOR STORAGE:
 
 	vector<vector<Point2f> > imagePoints[2];
@@ -132,20 +132,52 @@ StereoCalib(const vector<string>& imagelist, Size boardSize, bool useCalibrated 
 	cout << "Running stereo calibration ...\n";
 
 	Mat cameraMatrix[2], distCoeffs[2];
-	cameraMatrix[0] = Mat::eye(3, 3, CV_64F);
-	cameraMatrix[1] = Mat::eye(3, 3, CV_64F);
+	//cameraMatrix[0] = Mat::eye(3, 3, CV_64F);
+	//cameraMatrix[1] = Mat::eye(3, 3, CV_64F);
 	Mat R, T, E, F;
+
+	Mat ML, MR, DL, DR;
+
+	FileStorage fsl("..\\data\\camera_data_left.xml", FileStorage::READ);
+	fsl["camera_matrix"] >> ML;
+	fsl["distortion_coefficients"] >> DL;
+	fsl.release();
+
+	FileStorage fsr("..\\data\\camera_data_right.xml", FileStorage::READ);
+	fsr["camera_matrix"] >> MR;
+	fsr["distortion_coefficients"] >> DR;
+	fsr.release();
+
+	cameraMatrix[0] = ML;
+	cameraMatrix[1] = MR;
+
+	distCoeffs[0] = DL;
+	distCoeffs[1] = DR;
+
+	//double rms = stereoCalibrate(objectPoints, imagePoints[0], imagePoints[1],
+	//	cameraMatrix[0], distCoeffs[0],
+	//	cameraMatrix[1], distCoeffs[1],
+	//	imageSize, R, T, E, F,
+	//	CALIB_FIX_ASPECT_RATIO +
+	//	CALIB_ZERO_TANGENT_DIST +
+	//	CALIB_SAME_FOCAL_LENGTH +
+	//	CALIB_RATIONAL_MODEL +
+	//	CALIB_FIX_K3 + CALIB_FIX_K4 + CALIB_FIX_K5,
+	//	TermCriteria(TermCriteria::COUNT + TermCriteria::EPS, 100, 1e-5));
 
 	double rms = stereoCalibrate(objectPoints, imagePoints[0], imagePoints[1],
 		cameraMatrix[0], distCoeffs[0],
 		cameraMatrix[1], distCoeffs[1],
 		imageSize, R, T, E, F,
-		CALIB_FIX_ASPECT_RATIO +
-		CALIB_ZERO_TANGENT_DIST +
-		CALIB_SAME_FOCAL_LENGTH +
+		//CALIB_FIX_ASPECT_RATIO +
+		//CALIB_ZERO_TANGENT_DIST +
+		//CALIB_SAME_FOCAL_LENGTH +
 		CALIB_RATIONAL_MODEL +
-		CALIB_FIX_K3 + CALIB_FIX_K4 + CALIB_FIX_K5,
+		CALIB_FIX_K3 + CALIB_FIX_K4 + CALIB_FIX_K5 +
+		CALIB_USE_INTRINSIC_GUESS,
 		TermCriteria(TermCriteria::COUNT + TermCriteria::EPS, 100, 1e-5));
+
+
 	cout << "done with RMS error=" << rms << endl;
 
 	// CALIBRATION QUALITY CHECK
@@ -351,7 +383,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	if (imagelistfn == "")
 	{
 		imagelistfn = "stereo_calib.xml";
-		boardSize = Size(9, 6);
+		//boardSize = Size(9, 7);
 	}
 	else if (boardSize.width <= 0 || boardSize.height <= 0)
 	{
@@ -367,7 +399,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		return print_help();
 	}
 
-	StereoCalib(imagelist, boardSize, true, showRectified);
+	StereoCalib(imagelist, boardSize, false, showRectified);
 	return 0;
 }
 
