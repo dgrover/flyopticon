@@ -43,22 +43,22 @@ int findClosestPoint(Point2f pt, vector<Point2f> nbor)
 	}
 }
 
-Point3f triangulate(Mat P1, Mat P2, Point2f lpt, Point2f rpt)
-{
-	Mat p3D(1, 1, CV_64FC4);
-	Mat lp(1, 1, CV_64FC2);
-	Mat rp(1, 1, CV_64FC2);
-
-	lp.at<double>(0, 0) = lpt.x;
-	lp.at<double>(1, 0) = lpt.y;
-
-	rp.at<double>(0, 0) = rpt.x;
-	rp.at<double>(1, 0) = rpt.y;
-
-	triangulatePoints(P1, P2, lp, rp, p3D);
-
-	return Point3f((float)(p3D.at<double>(0, 0) / p3D.at<double>(3, 0)), (float)(p3D.at<double>(1, 0) / p3D.at<double>(3, 0)), (float)(p3D.at<double>(2, 0) / p3D.at<double>(3, 0)));
-}
+//Point3f triangulate(Mat P1, Mat P2, Point2f lpt, Point2f rpt)
+//{
+//	Mat p3D(1, 1, CV_64FC4);
+//	Mat lp(1, 1, CV_64FC2);
+//	Mat rp(1, 1, CV_64FC2);
+//
+//	lp.at<double>(0, 0) = lpt.x;
+//	lp.at<double>(1, 0) = lpt.y;
+//
+//	rp.at<double>(0, 0) = rpt.x;
+//	rp.at<double>(1, 0) = rpt.y;
+//
+//	triangulatePoints(P1, P2, lp, rp, p3D);
+//
+//	return Point3f((float)(p3D.at<double>(0, 0) / p3D.at<double>(3, 0)), (float)(p3D.at<double>(1, 0) / p3D.at<double>(3, 0)), (float)(p3D.at<double>(2, 0) / p3D.at<double>(3, 0)));
+//}
 
 Mat triangulate_Linear_LS(Mat mat_P_l, Mat mat_P_r, Mat warped_back_l, Mat warped_back_r)
 {
@@ -90,14 +90,14 @@ Mat triangulate_Linear_LS(Mat mat_P_l, Mat mat_P_r, Mat warped_back_l, Mat warpe
 }
 
 
-Point2f backproject3DPoint(Mat M, Mat P, Point3f point3d)
+Point2f backproject3DPoint(Mat M, Mat P, Mat pt3d)
 {
 	// 3D point vector [x y z 1]'
 	cv::Mat point3d_vec = cv::Mat(4, 1, CV_64FC1);
-	point3d_vec.at<double>(0) = point3d.x;
-	point3d_vec.at<double>(1) = point3d.y;
-	point3d_vec.at<double>(2) = point3d.z;
-	point3d_vec.at<double>(3) = 1;
+	point3d_vec.at<double>(0) = pt3d.at<double>(0, 0);
+	point3d_vec.at<double>(1) = pt3d.at<double>(1, 0);
+	point3d_vec.at<double>(2) = pt3d.at<double>(2, 0);
+	point3d_vec.at<double>(3) = pt3d.at<double>(3, 0);
 
 	// 2D point vector [u v 1]'
 	cv::Mat point2d_vec = cv::Mat(4, 1, CV_64FC1);
@@ -219,12 +219,8 @@ int _tmain(int argc, _TCHAR* argv[])
 
 		Mat pt3d = triangulate_Linear_LS(M1*P1, M2*P2, lp, rp);
 
-		pt.x = pt3d.at<double>(0, 0);
-		pt.y = pt3d.at<double>(1, 0);
-		pt.z = pt3d.at<double>(2, 0);
-
-		backlpt = backproject3DPoint(M1, P1, pt);
-		backrpt = backproject3DPoint(M2, P2, pt);
+		backlpt = backproject3DPoint(M1, P1, pt3d);
+		backrpt = backproject3DPoint(M2, P2, pt3d);
 
 		//printf("[%f %f %f %f]\n", lpt.x, lpt.y, backlpt.x, backlpt.y);
 		//printf("[%f %f %f %f]\n", rpt.x, rpt.y, backrpt.x, backrpt.y);
