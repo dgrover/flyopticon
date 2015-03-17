@@ -84,7 +84,7 @@ Mat triangulate_Linear_LS(Mat mat_P_l, Mat mat_P_r, Mat warped_back_l, Mat warpe
 	solve(A, b, X, DECOMP_SVD);
 	vconcat(X, W, X_homogeneous);
 	
-	printf("[%f %f %f %f]\n", X_homogeneous.at<double>(0, 0), X_homogeneous.at<double>(1, 0), X_homogeneous.at<double>(2, 0), X_homogeneous.at<double>(3, 0));
+	//printf("[%f %f %f %f]\n", X_homogeneous.at<double>(0, 0), X_homogeneous.at<double>(1, 0), X_homogeneous.at<double>(2, 0), X_homogeneous.at<double>(3, 0));
 	
 	return X_homogeneous;
 }
@@ -109,6 +109,24 @@ Point2f backproject3DPoint(Mat M, Mat P, Mat pt3d)
 	point2d.y = point2d_vec.at<double>(1) / point2d_vec.at<double>(2);
 
 	return point2d;
+}
+
+Mat convertToWorld(Mat pt3d)
+{
+	Point2f center(-44.111858, 3.038041);
+	float radius = 363.987061;
+	float zbase = 1804.028931;
+	float ztop = 1077.767944;
+
+	pt3d.at<double>(0, 0) -= center.x;
+	pt3d.at<double>(1, 0) = center.y - pt3d.at<double>(1, 0);
+	pt3d.at<double>(2, 0) = zbase - pt3d.at<double>(2, 0);
+
+	pt3d.at<double>(0, 0) *= 3.75 / radius;
+	pt3d.at<double>(1, 0) *= 3.75 / radius;
+	pt3d.at<double>(2, 0) *= 8 / (zbase - ztop);
+
+	return pt3d;
 }
 
 int _tmain(int argc, _TCHAR* argv[])
@@ -218,7 +236,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		rp.at<double>(2, 0) = 1;
 
 		Mat pt3d = triangulate_Linear_LS(M1*P1, M2*P2, lp, rp);
-
+		
 		backlpt = backproject3DPoint(M1, P1, pt3d);
 		backrpt = backproject3DPoint(M2, P2, pt3d);
 
@@ -230,6 +248,10 @@ int _tmain(int argc, _TCHAR* argv[])
 
 		drawCross(lframe, backlpt, 2);
 		drawCross(rframe, backrpt, 2);
+
+		Mat w3d = convertToWorld(pt3d);
+
+		printf("[%f %f %f]\n", w3d.at<double>(0, 0), w3d.at<double>(1, 0), w3d.at<double>(2, 0));
 
 		imshow("camera left", lframe);
 		//imshow("mask left", lmask);
