@@ -248,8 +248,6 @@ void computeCylDim(Mat lframe, Mat rframe)
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	bool stream = true;
-	
 	FileStorage fs("intrinsics.xml", FileStorage::READ);
 	fs["M1"] >> M1;
 	fs["M2"] >> M2;
