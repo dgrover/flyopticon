@@ -12,6 +12,10 @@ bool record = false;
 
 int _tmain(int argc, _TCHAR* argv[])
 {
+	//FlyWorld mov("images", "sequence.txt", "displaySettings.txt", 912, 1140, 1920);
+	FlyWorld mov("images", "sequence.txt", "displaySettings.txt", 1280, 800, 1920);
+	printf("%d images read [OK]\n", mov.numImages);
+
 	int imageWidth = 1024, imageHeight = 1024;
 	
 	BusManager busMgr;
@@ -43,7 +47,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		error = fcam[i].Connect(guid);
 		
 		error = fcam[i].SetCameraParameters(imageWidth, imageHeight);
-		error = fcam[i].SetProperty(SHUTTER, 3.999);
+		error = fcam[i].SetProperty(SHUTTER, 1.998);
 		error = fcam[i].SetProperty(GAIN, 0.0);
 		error = fcam[i].SetTrigger();
 		error = fcam[i].Start();
@@ -67,8 +71,26 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	int key_state = 0;
 
-	#pragma omp parallel sections num_threads(3)
+	#pragma omp parallel sections num_threads(4)
 	{
+		#pragma omp section
+		{
+			while (true)
+			{
+				for (int i = 0; i < mov.numImages; i++)
+				{
+					for (int j = 0; j < mov.sequence[i]; j++)
+					{
+						mov.imageSequence->seek(((double)i) / ((double)(mov.numImages - 1)));
+						mov.viewer.frame();
+					}
+				}
+
+				if (!stream)
+					break;
+			}
+		}
+
 		#pragma omp section
 		{
 			vector<int> ltime(numCameras);

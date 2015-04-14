@@ -23,6 +23,7 @@
 
 #include "fmfwriter.h"
 #include "pgrcam.h"
+#include "flyworld.h"
 
 
 

@@ -30,6 +30,9 @@
     <ClInclude Include="pgrcam.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="flyworld.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -42,6 +45,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="pgrcam.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="flyworld.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
