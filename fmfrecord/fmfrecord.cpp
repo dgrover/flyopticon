@@ -10,6 +10,23 @@ using namespace cv;
 bool stream = true;
 bool record = false;
 
+int ConvertTimeToFPS(int ctime, int ltime)
+{
+	int dtime;
+
+	if (ctime < ltime)
+		dtime = ctime + (8000 - ltime);
+	else
+		dtime = ctime - ltime;
+
+	if (dtime > 0)
+		dtime = 8000 / dtime;
+	else
+		dtime = 0;
+
+	return dtime;
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
 	//FlyWorld mov("images", "sequence.txt", "displaySettings.txt", 912, 1140, 1920);
@@ -59,9 +76,9 @@ int _tmain(int argc, _TCHAR* argv[])
 		}
 	}
 
-	printf("\nPress [F1] to start/stop recording. Press [ESC] to exit.\n\n");
+	//Press [F1] to start/stop recording. Press [ESC] to exit.
 
-	vector<queue <Mat>> dispStream(numCameras);
+	vector<Mat> dispStream(numCameras);
 	vector<queue <Image>> imageStream(numCameras);
 	vector<queue <TimeStamp>> timeStamps(numCameras);
 
@@ -94,8 +111,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		#pragma omp section
 		{
 			vector<int> ltime(numCameras);
-			vector<int> ctime(numCameras);
-			vector<int> dtime(numCameras);
+			vector<int> fps(numCameras);
 
 			int count = 0;
 
@@ -107,24 +123,13 @@ int _tmain(int argc, _TCHAR* argv[])
 					stamp[i] = fcam[i].GetTimeStamp();
 					frame[i] = fcam[i].convertImagetoMat(img[i]);
 
-					ctime[i] = stamp[i].cycleCount;
+					fps[i] = ConvertTimeToFPS(stamp[i].cycleCount, ltime[i]);
+					ltime[i] = stamp[i].cycleCount;
 
-					if (ctime[i] < ltime[i])
-						dtime[i] = ctime[i] + (8000 - ltime[i]);
-					else
-						dtime[i] = ctime[i] - ltime[i];
-
-					if (dtime[i] > 0)
-						dtime[i] = 8000 / dtime[i];
-					else
-						dtime[i] = 0;
-
-					ltime[i] = ctime[i];
-
-					putText(frame[i], to_string(dtime[i]), Point(0, 10), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
+					putText(frame[i], to_string(fps[i]), Point((imageWidth-50), 10), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
 
 					if (record)
-						putText(frame[i], to_string(count), Point(512, 10), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
+						putText(frame[i], to_string(count), Point(0, 10), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
 
 				}
 
@@ -134,7 +139,7 @@ int _tmain(int argc, _TCHAR* argv[])
 				{
 					for (int i = 0; i < numCameras; i++)
 					{
-						dispStream[i].push(frame[i]);
+						dispStream[i] = frame[i].clone();
 						
 						if (record)
 						{
@@ -233,19 +238,16 @@ int _tmain(int argc, _TCHAR* argv[])
 			{
 				bool flag = true;
 
-				for (int i = 0; i < numCameras; i++)
-					if (dispStream[i].empty())
-						flag = false;
-					
-				if (flag)
+				#pragma omp critical
 				{
 					for (int i = 0; i < numCameras; i++)
-						imshow(window_name[i], dispStream[i].front());
+						if (dispStream[i].empty())
+							flag = false;
 
-					#pragma omp critical
+					if (flag)
 					{
 						for (int i = 0; i < numCameras; i++)
-							dispStream[i] = queue<Mat>();
+							imshow(window_name[i], dispStream[i]);
 					}
 				}
 
