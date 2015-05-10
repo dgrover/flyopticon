@@ -64,7 +64,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		error = fcam[i].Connect(guid);
 		
 		error = fcam[i].SetCameraParameters(imageWidth, imageHeight);
-		error = fcam[i].SetProperty(SHUTTER, 1.998);
+		error = fcam[i].SetProperty(SHUTTER, 3.999);
 		error = fcam[i].SetProperty(GAIN, 0.0);
 		error = fcam[i].SetTrigger();
 		error = fcam[i].Start();
@@ -86,9 +86,11 @@ int _tmain(int argc, _TCHAR* argv[])
 	vector<TimeStamp> stamp(numCameras);
 	vector<Mat> frame(numCameras);
 
-	int key_state = 0;
+	int record_key_state = 0;
+	int count = 0;
 
-	#pragma omp parallel sections num_threads(4)
+	omp_set_nested(1);
+	#pragma omp parallel sections num_threads(5)
 	{
 		#pragma omp section
 		{
@@ -102,6 +104,7 @@ int _tmain(int argc, _TCHAR* argv[])
 						mov.viewer.frame();
 					}
 				}
+				
 
 				if (!stream)
 					break;
@@ -113,65 +116,50 @@ int _tmain(int argc, _TCHAR* argv[])
 			vector<int> ltime(numCameras);
 			vector<int> fps(numCameras);
 
-			int count = 0;
-
-			while (true)
+			#pragma omp parallel for num_threads(numCameras)
+			for (int i = 0; i < numCameras; i++)
 			{
-				for (int i = 0; i < numCameras; i++)
+
+				while (true)
 				{
-					img[i] = fcam[i].GrabFrame();
-					stamp[i] = fcam[i].GetTimeStamp();
-					frame[i] = fcam[i].convertImagetoMat(img[i]);
+						img[i] = fcam[i].GrabFrame();
+						stamp[i] = fcam[i].GetTimeStamp();
+						frame[i] = fcam[i].convertImagetoMat(img[i]);
 
-					fps[i] = ConvertTimeToFPS(stamp[i].cycleCount, ltime[i]);
-					ltime[i] = stamp[i].cycleCount;
+						fps[i] = ConvertTimeToFPS(stamp[i].cycleCount, ltime[i]);
+						ltime[i] = stamp[i].cycleCount;
 
-					putText(frame[i], to_string(fps[i]), Point((imageWidth-50), 10), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
+						putText(frame[i], to_string(fps[i]), Point((imageWidth - 50), 10), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
 
-					if (record)
-						putText(frame[i], to_string(count), Point(0, 10), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
-
-				}
-
-				count++;
-
-				#pragma omp critical
-				{
-					for (int i = 0; i < numCameras; i++)
-					{
-						dispStream[i] = frame[i].clone();
-						
 						if (record)
-						{
-							timeStamps[i].push(stamp[i]);
-							imageStream[i].push(img[i]);
-						}
-					}
-				}
+							putText(frame[i], to_string(count), Point(0, 10), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
 
-				if (GetAsyncKeyState(VK_F1))
-				{
-					if (!key_state)
+
+					if (i == 0)
+						count++;
+
+					#pragma omp critical
 					{
-						record = !record;
-						count = 0;
+							dispStream[i] = frame[i].clone();
+
+							if (record)
+							{
+								timeStamps[i].push(stamp[i]);
+								imageStream[i].push(img[i]);
+							}
 					}
 
-					key_state = 1;
-				}
-				else
-					key_state = 0;
-
-				if (GetAsyncKeyState(VK_ESCAPE))
-				{
-					stream = false;
-					break;
+					if (!stream)
+						break;
 				}
 			}
 		}
 
 		#pragma omp section
 		{
+			vector<Image> tImage(numCameras);
+			vector<TimeStamp> tStamp(numCameras);
+
 			while (true)
 			{
 				bool flag = true;
@@ -192,20 +180,27 @@ int _tmain(int argc, _TCHAR* argv[])
 							fout[i].InitHeader(imageWidth, imageHeight);
 							fout[i].WriteHeader();
 						}
-
-						fout[i].WriteFrame(imageStream[i].front());
-						fout[i].WriteLog(timeStamps[i].front());
-						fout[i].nframes++;
 					}
 
 					#pragma omp critical
 					{
 						for (int i = 0; i < numCameras; i++)
 						{
+							tImage[i] = imageStream[i].front();
+							tStamp[i] = timeStamps[i].front();
+
 							imageStream[i].pop();
 							timeStamps[i].pop();
 						}
 					}
+
+					for (int i = 0; i < numCameras; i++)
+					{
+						fout[i].WriteFrame(tImage[i]);
+						fout[i].WriteLog(tStamp[i]);
+						fout[i].nframes++;
+					}
+
 				}
 				else
 				{
@@ -234,33 +229,57 @@ int _tmain(int argc, _TCHAR* argv[])
 
 		#pragma omp section
 		{
-			while (true)
+			vector<Mat> tframe(numCameras);
+
+			#pragma omp parallel for num_threads(numCameras)
+			for (int i = 0; i < numCameras; i++)
 			{
-				bool flag = true;
-
-				#pragma omp critical
+				while (true)
 				{
-					for (int i = 0; i < numCameras; i++)
-						if (dispStream[i].empty())
-							flag = false;
-
-					if (flag)
+					#pragma omp critical
 					{
-						for (int i = 0; i < numCameras; i++)
-							imshow(window_name[i], dispStream[i]);
+						tframe[i] = dispStream[i].clone();
+					}
+
+					if (!tframe[i].empty())
+						imshow(window_name[i], tframe[i]);
+
+					waitKey(1);
+
+					if (!stream)
+					{
+						destroyWindow(window_name[i]);
+
+						break;
 					}
 				}
+			}
+		}
 
-				waitKey(1);
-
-				if (!stream)
+		#pragma omp section
+		{
+			while (true)
+			{
+				if (GetAsyncKeyState(VK_F1))
 				{
-					for (int i = 0; i < numCameras; i++)
-						destroyWindow(window_name[i]);
-					
+					if (!record_key_state)
+					{
+						record = !record;
+						count = 0;
+					}
+
+					record_key_state = 1;
+				}
+				else
+					record_key_state = 0;
+
+				if (GetAsyncKeyState(VK_ESCAPE))
+				{
+					stream = false;
 					break;
 				}
 			}
+
 		}
 	}
 
