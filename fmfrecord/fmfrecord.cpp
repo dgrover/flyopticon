@@ -7,8 +7,9 @@ using namespace std;
 using namespace FlyCapture2;
 using namespace cv;
 
+#define MAXFRAMES 3000
+
 bool stream = true;
-bool record = false;
 
 int ConvertTimeToFPS(int ctime, int ltime)
 {
@@ -86,8 +87,11 @@ int _tmain(int argc, _TCHAR* argv[])
 	vector<TimeStamp> stamp(numCameras);
 	vector<Mat> frame(numCameras);
 
-	int record_key_state = 0;
-	int count = 0;
+	vector<bool> record(numCameras);
+	vector<int> count(numCameras);
+
+	fill(record.begin(), record.begin() + numCameras, false);
+	fill(count.begin(), count.begin() + numCameras, 0);
 
 	omp_set_nested(1);
 	#pragma omp parallel sections num_threads(5)
@@ -105,7 +109,6 @@ int _tmain(int argc, _TCHAR* argv[])
 					}
 				}
 				
-
 				if (!stream)
 					break;
 			}
@@ -122,32 +125,31 @@ int _tmain(int argc, _TCHAR* argv[])
 
 				while (true)
 				{
-						img[i] = fcam[i].GrabFrame();
-						stamp[i] = fcam[i].GetTimeStamp();
-						frame[i] = fcam[i].convertImagetoMat(img[i]);
+					img[i] = fcam[i].GrabFrame();
+					stamp[i] = fcam[i].GetTimeStamp();
+					frame[i] = fcam[i].convertImagetoMat(img[i]);
 
-						fps[i] = ConvertTimeToFPS(stamp[i].cycleCount, ltime[i]);
-						ltime[i] = stamp[i].cycleCount;
+					fps[i] = ConvertTimeToFPS(stamp[i].cycleCount, ltime[i]);
+					ltime[i] = stamp[i].cycleCount;
 
-						putText(frame[i], to_string(fps[i]), Point((imageWidth - 50), 10), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
+					putText(frame[i], to_string(fps[i]), Point((imageWidth - 50), 10), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
 
-						if (record)
-							putText(frame[i], to_string(count), Point(0, 10), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
-
-
-					if (i == 0)
-						count++;
+					if (record[i])
+						putText(frame[i], to_string(count[i]++), Point(0, 10), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
 
 					#pragma omp critical
 					{
-							dispStream[i] = frame[i].clone();
+						dispStream[i] = frame[i].clone();
 
-							if (record)
-							{
-								timeStamps[i].push(stamp[i]);
-								imageStream[i].push(img[i]);
-							}
+						if (record[i])
+						{
+							timeStamps[i].push(stamp[i]);
+							imageStream[i].push(img[i]);
+						}
 					}
+
+					if (count[i] == MAXFRAMES)
+						record[i] = false;
 
 					if (!stream)
 						break;
@@ -160,31 +162,14 @@ int _tmain(int argc, _TCHAR* argv[])
 			vector<Image> tImage(numCameras);
 			vector<TimeStamp> tStamp(numCameras);
 
-			while (true)
+			#pragma omp parallel for num_threads(numCameras)
+			for (int i = 0; i < numCameras; i++)
 			{
-				bool flag = true;
-
-				for (int i = 0; i < numCameras; i++)
-					if (imageStream[i].empty())
-						flag = false;
-
-					
-				if (flag)
+				while (true)
 				{
-					for (int i = 0; i < numCameras; i++)
+					if (!imageStream[i].empty())
 					{
-						if (!fout[i].IsOpen())
-						{
-							fout[i].id = i;
-							fout[i].Open();
-							fout[i].InitHeader(imageWidth, imageHeight);
-							fout[i].WriteHeader();
-						}
-					}
-
-					#pragma omp critical
-					{
-						for (int i = 0; i < numCameras; i++)
+						#pragma omp critical
 						{
 							tImage[i] = imageStream[i].front();
 							tStamp[i] = timeStamps[i].front();
@@ -192,36 +177,34 @@ int _tmain(int argc, _TCHAR* argv[])
 							imageStream[i].pop();
 							timeStamps[i].pop();
 						}
-					}
 
-					for (int i = 0; i < numCameras; i++)
-					{
+						if (!fout[i].IsOpen())
+						{
+							fout[i].id = i;
+							fout[i].Open();
+							fout[i].InitHeader(imageWidth, imageHeight);
+							fout[i].WriteHeader();
+						}
+
 						fout[i].WriteFrame(tImage[i]);
 						fout[i].WriteLog(tStamp[i]);
 						fout[i].nframes++;
 					}
-
-				}
-				else
-				{
-					for (int i = 0; i < numCameras; i++)
+					else
 					{
-						if (!record && fout[i].IsOpen())
+						if (!record[i] && fout[i].IsOpen())
 							fout[i].Close();
 					}
-				}
-				
-				if (!stream)
-				{
-					if (!flag)
-					{
-						if (record)
-						{
-							for (int i = 0; i < numCameras; i++)
-								fout[i].Close();
-						}
 
-						break;
+					if (!stream)
+					{
+						if (imageStream[i].empty())
+						{
+							if (record[i])
+								fout[i].Close();
+
+							break;
+						}
 					}
 				}
 			}
@@ -258,14 +241,18 @@ int _tmain(int argc, _TCHAR* argv[])
 
 		#pragma omp section
 		{
+			int record_key_state = 0;
+			bool trec;
+
 			while (true)
 			{
 				if (GetAsyncKeyState(VK_F1))
 				{
 					if (!record_key_state)
 					{
-						record = !record;
-						count = 0;
+						trec = !record[0];
+						fill(record.begin(), record.begin() + numCameras, trec);
+						fill(count.begin(), count.begin() + numCameras, 0);
 					}
 
 					record_key_state = 1;
