@@ -6,10 +6,26 @@
 using namespace std;
 using namespace FlyCapture2;
 using namespace cv;
+using namespace moodycamel;
 
-#define MAXFRAMES 3000
+#define MAXFRAMES 1000
 
 bool stream = true;
+
+bool lrecord = false;
+bool rrecord = false;
+
+int imageWidth = 1024, imageHeight = 1024;
+
+ReaderWriterQueue<Image> lq(100), rq(100);
+
+ReaderWriterQueue<Image> lrec(100);
+ReaderWriterQueue<Image> rrec(100);
+
+ReaderWriterQueue<Mat> ldisp_frame(1), rdisp_frame(1);
+
+int llast = 0, lfps = 0;
+int rlast = 0, rfps = 0;
 
 int ConvertTimeToFPS(int ctime, int ltime)
 {
@@ -28,14 +44,36 @@ int ConvertTimeToFPS(int ctime, int ltime)
 	return dtime;
 }
 
+void OnLeftImageGrabbed(Image* pImage, const void* pCallbackData)
+{
+	Image img;
+	
+	lfps = ConvertTimeToFPS(pImage->GetTimeStamp().cycleCount, llast);
+	llast = pImage->GetTimeStamp().cycleCount;
+
+	img.DeepCopy(pImage);
+	lq.enqueue(img);
+	
+	return;
+}
+
+void OnRightImageGrabbed(Image* pImage, const void* pCallbackData)
+{
+	Image img;
+
+	rfps = ConvertTimeToFPS(pImage->GetTimeStamp().cycleCount, rlast);
+	rlast = pImage->GetTimeStamp().cycleCount;
+
+	img.DeepCopy(pImage);
+	rq.enqueue(img);
+
+	return;
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
-	//FlyWorld mov("images", "sequence.txt", "displaySettings.txt", 912, 1140, 1920);
-	FlyWorld mov("images", "sequence.txt", "displaySettings.txt", 1280, 800, 1920);
-	printf("%d images read [OK]\n", mov.numImages);
+	PGRcam lcam, rcam;
 
-	int imageWidth = 1024, imageHeight = 1024;
-	
 	BusManager busMgr;
 	unsigned int numCameras;
 	PGRGuid guid;
@@ -45,70 +83,82 @@ int _tmain(int argc, _TCHAR* argv[])
 	error = busMgr.GetNumOfCameras(&numCameras);
 	printf("Number of cameras detected: %u\n", numCameras);
 
-	if (numCameras < 1)
+	if (numCameras < 2)
 	{
 		printf("Insufficient number of cameras\n");
 		return -1;
 	}
 
-	vector<PGRcam> fcam(numCameras);
-	vector<FmfWriter> fout(numCameras);
-	vector<string> window_name(numCameras);
+	error = busMgr.GetCameraFromIndex(0, &guid);
 
-	//Initialize cameras
-	for (int i = 0; i < numCameras; i++)
+	error = lcam.Connect(guid);
+
+	error = lcam.SetCameraParameters(imageWidth, imageHeight);
+	error = lcam.SetProperty(SHUTTER, 1.998);
+	error = lcam.SetProperty(GAIN, 0.0);
+	error = lcam.SetTrigger();
+	//error = lcam.Start();
+	error = lcam.cam.StartCapture(OnLeftImageGrabbed);
+
+	if (error != PGRERROR_OK)
 	{
-		error = busMgr.GetCameraFromIndex(i, &guid);
-		
-		fcam[i].id = i;
-		window_name[i] = "Camera " + to_string(i);
-		error = fcam[i].Connect(guid);
-		
-		error = fcam[i].SetCameraParameters(imageWidth, imageHeight);
-		error = fcam[i].SetProperty(SHUTTER, 3.999);
-		error = fcam[i].SetProperty(GAIN, 0.0);
-		error = fcam[i].SetTrigger();
-		error = fcam[i].Start();
-
-		if (error != PGRERROR_OK)
-		{
-			error.PrintErrorTrace();
-			return -1;
-		}
+		error.PrintErrorTrace();
+		return -1;
 	}
 
-	//Press [F1] to start/stop recording. Press [ESC] to exit.
+	error = busMgr.GetCameraFromIndex(1, &guid);
 
-	vector<Mat> dispStream(numCameras);
-	vector<queue <Image>> imageStream(numCameras);
-	vector<queue <TimeStamp>> timeStamps(numCameras);
+	error = rcam.Connect(guid);
 
-	vector<Image> img(numCameras);
-	vector<TimeStamp> stamp(numCameras);
-	vector<Mat> frame(numCameras);
+	error = rcam.SetCameraParameters(imageWidth, imageHeight);
+	error = rcam.SetProperty(SHUTTER, 1.998);
+	error = rcam.SetProperty(GAIN, 0.0);
+	error = rcam.SetTrigger();
+	//error = rcam.Start();
+	error = rcam.cam.StartCapture(OnRightImageGrabbed);
 
-	vector<bool> record(numCameras);
-	vector<int> count(numCameras);
+	if (error != PGRERROR_OK)
+	{
+		error.PrintErrorTrace();
+		return -1;
+	}
 
-	fill(record.begin(), record.begin() + numCameras, false);
-	fill(count.begin(), count.begin() + numCameras, 0);
+	FmfWriter lout, rout;
 
-	omp_set_nested(1);
-	#pragma omp parallel sections num_threads(5)
+	int lcount = 0, rcount = 0;
+	int record_key_state = 0;
+	
+	#pragma omp parallel sections num_threads(7)
 	{
 		#pragma omp section
 		{
+			Image img;
+			Mat frame;
+
 			while (true)
 			{
-				for (int i = 0; i < mov.numImages; i++)
+				if (lq.try_dequeue(img))
 				{
-					for (int j = 0; j < mov.sequence[i]; j++)
+					unsigned int rowBytes = (double)img.GetReceivedDataSize() / (double)img.GetRows();
+					Mat tframe = Mat(img.GetRows(), img.GetCols(), CV_8UC1, img.GetData(), rowBytes);
+
+					frame = tframe.clone();
+
+					putText(frame, to_string(lfps), Point((imageWidth - 50), 10), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
+					putText(frame, to_string(lq.size_approx()), Point((imageWidth - 50), 20), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
+
+					if (lrecord)
 					{
-						mov.imageSequence->seek(((double)i) / ((double)(mov.numImages - 1)));
-						mov.viewer.frame();
+						putText(frame, to_string(lcount), Point(0, 10), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
+						lrec.enqueue(img);
+						lcount++;
 					}
+
+					ldisp_frame.try_enqueue(frame.clone());
+
+					
 				}
-				
+
 				if (!stream)
 					break;
 			}
@@ -116,143 +166,143 @@ int _tmain(int argc, _TCHAR* argv[])
 
 		#pragma omp section
 		{
-			vector<int> ltime(numCameras);
-			vector<int> fps(numCameras);
-
-			#pragma omp parallel for num_threads(numCameras)
-			for (int i = 0; i < numCameras; i++)
-			{
-
-				while (true)
-				{
-					img[i] = fcam[i].GrabFrame();
-					stamp[i] = fcam[i].GetTimeStamp();
-					frame[i] = fcam[i].convertImagetoMat(img[i]);
-
-					fps[i] = ConvertTimeToFPS(stamp[i].cycleCount, ltime[i]);
-					ltime[i] = stamp[i].cycleCount;
-
-					putText(frame[i], to_string(fps[i]), Point((imageWidth - 50), 10), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
-
-					if (record[i])
-						putText(frame[i], to_string(count[i]++), Point(0, 10), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
-
-					#pragma omp critical
-					{
-						dispStream[i] = frame[i].clone();
-
-						if (record[i])
-						{
-							timeStamps[i].push(stamp[i]);
-							imageStream[i].push(img[i]);
-						}
-					}
-
-					if (count[i] == MAXFRAMES)
-						record[i] = false;
-
-					if (!stream)
-						break;
-				}
-			}
-		}
-
-		#pragma omp section
-		{
-			vector<Image> tImage(numCameras);
-			vector<TimeStamp> tStamp(numCameras);
-
-			#pragma omp parallel for num_threads(numCameras)
-			for (int i = 0; i < numCameras; i++)
-			{
-				while (true)
-				{
-					if (!imageStream[i].empty())
-					{
-						#pragma omp critical
-						{
-							tImage[i] = imageStream[i].front();
-							tStamp[i] = timeStamps[i].front();
-
-							imageStream[i].pop();
-							timeStamps[i].pop();
-						}
-
-						if (!fout[i].IsOpen())
-						{
-							fout[i].id = i;
-							fout[i].Open();
-							fout[i].InitHeader(imageWidth, imageHeight);
-							fout[i].WriteHeader();
-						}
-
-						fout[i].WriteFrame(tImage[i]);
-						fout[i].WriteLog(tStamp[i]);
-						fout[i].nframes++;
-					}
-					else
-					{
-						if (!record[i] && fout[i].IsOpen())
-							fout[i].Close();
-					}
-
-					if (!stream)
-					{
-						if (imageStream[i].empty())
-						{
-							if (record[i])
-								fout[i].Close();
-
-							break;
-						}
-					}
-				}
-			}
-		}
-
-		#pragma omp section
-		{
-			vector<Mat> tframe(numCameras);
-
-			#pragma omp parallel for num_threads(numCameras)
-			for (int i = 0; i < numCameras; i++)
-			{
-				while (true)
-				{
-					#pragma omp critical
-					{
-						tframe[i] = dispStream[i].clone();
-					}
-
-					if (!tframe[i].empty())
-						imshow(window_name[i], tframe[i]);
-
-					waitKey(1);
-
-					if (!stream)
-					{
-						destroyWindow(window_name[i]);
-
-						break;
-					}
-				}
-			}
-		}
-
-		#pragma omp section
-		{
-			int record_key_state = 0;
-			bool trec;
+			Image img;
+			Mat frame;
 
 			while (true)
 			{
-				if (GetAsyncKeyState(VK_F1))
+				if (rq.try_dequeue(img))
+				{
+					unsigned int rowBytes = (double)img.GetReceivedDataSize() / (double)img.GetRows();
+					Mat tframe = Mat(img.GetRows(), img.GetCols(), CV_8UC1, img.GetData(), rowBytes);
+
+					frame = tframe.clone();
+
+					putText(frame, to_string(rfps), Point((imageWidth - 50), 10), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
+					putText(frame, to_string(rq.size_approx()), Point((imageWidth - 50), 20), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
+
+					if (rrecord)
+					{
+						putText(frame, to_string(rcount), Point(0, 10), FONT_HERSHEY_COMPLEX, 0.4, Scalar(255, 255, 255));
+						rrec.enqueue(img);
+						rcount++;
+					}
+
+					rdisp_frame.try_enqueue(frame.clone());
+
+				}
+
+				if (!stream)
+					break;
+			}
+		}
+
+		#pragma omp section
+		{
+			Image tImage;
+
+			while (true)
+			{
+				if (lrec.try_dequeue(tImage))
+				{
+					if (!lout.IsOpen())
+					{
+						lout.id = 0;
+						lout.Open();
+						lout.InitHeader(imageWidth, imageHeight);
+						lout.WriteHeader();
+					}
+
+					lout.WriteFrame(tImage);
+					lout.WriteLog(tImage.GetTimeStamp());
+					lout.nframes++;
+				}
+				else
+				{
+					if (!lrecord && lout.IsOpen())
+						lout.Close();
+
+					if (!stream)
+						break;
+				}
+			}
+		}
+
+		#pragma omp section
+		{
+			Image tImage;
+
+			while (true)
+			{
+				if (rrec.try_dequeue(tImage))
+				{
+					if (!rout.IsOpen())
+					{
+						rout.id = 1;
+						rout.Open();
+						rout.InitHeader(imageWidth, imageHeight);
+						rout.WriteHeader();
+					}
+
+					rout.WriteFrame(tImage);
+					rout.WriteLog(tImage.GetTimeStamp());
+					rout.nframes++;
+				}
+				else
+				{
+					if (!rrecord && rout.IsOpen())
+						rout.Close();
+
+					if (!stream)
+						break;
+				}
+			}
+		}
+
+		#pragma omp section
+		{
+			Mat frame;
+
+			while (true)
+			{
+
+				if (ldisp_frame.try_dequeue(frame))
+					imshow("Camera Left", frame);
+
+				waitKey(1);
+
+				if (!stream)
+					break;
+			}
+		}
+
+		#pragma omp section
+		{
+			Mat frame;
+			
+			while (true)
+			{
+
+				if (rdisp_frame.try_dequeue(frame))
+					imshow("Camera Right", frame);
+			
+				waitKey(1);
+
+				if (!stream)
+					break;
+			}
+		}
+
+		#pragma omp section
+		{
+			while (true)
+			{
+				if (GetAsyncKeyState(VK_F2))
 				{
 					if (!record_key_state)
 					{
-						trec = !record[0];
-						fill(record.begin(), record.begin() + numCameras, trec);
-						fill(count.begin(), count.begin() + numCameras, 0);
+						lrecord = !lrecord;
+						rrecord = !rrecord;
 					}
 
 					record_key_state = 1;
@@ -260,19 +310,41 @@ int _tmain(int argc, _TCHAR* argv[])
 				else
 					record_key_state = 0;
 
+				if (lrecord)
+				{
+					if (lcount == MAXFRAMES)
+					{
+						lcount = 0;
+						lrecord = false;
+					}
+				}
+
+				if (rrecord)
+				{
+					if (rcount == MAXFRAMES)
+					{
+						rcount = 0;
+						rrecord = false;
+					}
+				}
+
 				if (GetAsyncKeyState(VK_ESCAPE))
 				{
 					stream = false;
 					break;
 				}
 			}
-
 		}
 	}
 
-	for (unsigned int i = 0; i < numCameras; i++)
-		fcam[i].Stop();
+	if (lout.IsOpen())
+		lout.Close();
 
+	if (rout.IsOpen())
+		rout.Close();
+
+	lcam.Stop();
+	rcam.Stop();
 	return 0;
 }
 

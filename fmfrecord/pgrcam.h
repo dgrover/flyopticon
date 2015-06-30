@@ -8,7 +8,6 @@ using namespace cv;
 class PGRcam
 {
 private:
-	Camera cam;
 	CameraInfo camInfo;
 
 	Image rawImage, convertedImage;
@@ -28,11 +27,11 @@ private:
 	TriggerModeInfo triggerModeInfo;
 	TriggerMode triggerMode;
 
-
 	bool valid;
 
 public:
 
+	Camera cam;
 	int id;
 
 	PGRcam();
@@ -42,7 +41,7 @@ public:
 	FlyCapture2::Error SetCameraParameters(int width, int height);
 	FlyCapture2::Error SetTrigger();
 	FlyCapture2::Error SetProperty(PropertyType type, float absValue);
-	FlyCapture2::Error Start();
+	//FlyCapture2::Error Start();
 	FlyCapture2::Error Stop();
 	FlyCapture2::Image GrabFrame();
 	Mat convertImagetoMat(Image img);

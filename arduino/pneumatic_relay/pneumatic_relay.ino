@@ -3,7 +3,8 @@ const int led0 = 2;
 const int led1 = 3;
 const int led2 = 4;
 const int led3 = 5;
-int qt = 500;
+int qt = 1000;
+
 int i = 0;
 int cycles = 10;
 
@@ -28,21 +29,24 @@ void loop() {
                   i = 0; 
                   while(i<cycles) {          
                   digitalWrite(led0,LOW);
-               delay(qt);
-                digitalWrite(led0,HIGH);
+                  delay(qt);
+                  digitalWrite(led0,HIGH);
                 
-                 digitalWrite(led1,LOW);
-               delay(qt);
-                digitalWrite(led1,HIGH);
+                  digitalWrite(led1,LOW);
+                  delay(qt);
+                  digitalWrite(led1,HIGH);
                 
-                 digitalWrite(led2,LOW);
-               delay(qt);
-                digitalWrite(led2,HIGH);
+                  digitalWrite(led2,LOW);
+                  delay(qt);
+                  digitalWrite(led2,HIGH);
                 
-                 digitalWrite(led3,LOW);
-               delay(qt);
-                digitalWrite(led3,HIGH);
-                i++;
+                  digitalWrite(led3,LOW);
+                  delay(qt);
+                  digitalWrite(led3,HIGH);
+                
+                  i++;
+                
+                
                 } 
                 }
                
