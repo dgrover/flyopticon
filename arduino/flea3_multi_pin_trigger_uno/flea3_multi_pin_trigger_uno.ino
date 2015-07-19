@@ -8,9 +8,11 @@ void setup()
 
 void loop()
 {
-  //100fps
+  //60fps - 8333
+  //80fps - 6250
+  //100fps - 5000
   PORTD = B10100000; //Set pins HIGH
-  delayMicroseconds(5000);
+  delayMicroseconds(8333); 
   PORTD = B00000000; //Set pins LOW
-  delayMicroseconds(5000);
+  delayMicroseconds(8333);
 }
