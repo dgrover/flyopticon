@@ -1,32 +1,27 @@
-#include <osg/TexMat>
-#include <osgDB/ReadFile>
-#include <osgViewer/Viewer>
-#include <osg/ShapeDrawable>
-#include <osg/Texture2D>
-#include <osg/CullFace>
-#include <osgGA/GUIEventHandler>
-#include <stdio.h>
+// cylindercalib.cpp : Defines the entry point for the console application.
+//
 
+#include "stdafx.h"
 
-int xoffset = 1920.0;
+int xoffset = 0.0;
 int yoffset = 0.0;
 int width = 912.0;
 int height = 1140.0 * 2.0;
-float cradius = (7.5 / 2.0);// * 1280.0/800.0; ///7.5 diameter
-float cheight = 6;// * 800.0/1280.0;//3.6; //8 height
-double defaultDistance = (cradius + 12.5)*4.0;//14;//;
+float cradius = (7.5 / 2.0);		// 7.5" diameter
+float cheight = 6;					// 6" height
+double defaultDistance = (cradius + 12.5)*4.0;
 double distance = defaultDistance;
 double defaultCull = 0.0;
 double cull = defaultCull;
 double loadedDistance = defaultDistance;
 double loadedCull = defaultCull;
 double camHorLoc = 0;
-double camVertLoc = cheight*-0.5;;
+double camVertLoc = cheight*-0.5;
 float transInc = 0.1;
 double depth = 0;
 osg::Vec4 backgroundColor = osg::Vec4(0, 0, 0, 1);
 osg::Vec3d up = osg::Vec3d(0, 0, 1); //up vector
-const char* imageFileName = "images//numberline.gif";//"vert_stripe.bmp";
+const char* imageFileName = "images//numberline.gif";
 const char* displayFile = "displaySettings.txt";
 osgViewer::Viewer viewer;
 
@@ -151,7 +146,9 @@ void printInfo()
 
 void writeInfo()
 {
-	FILE * file = fopen(displayFile, "w");
+	FILE *file = NULL;
+	
+	fopen_s(&file, displayFile, "w");
 	fprintf(file, "%f\n", distance);
 	fprintf(file, "%f\n", cull);
 	fclose(file);
@@ -199,9 +196,7 @@ void setStartingViews()
 }
 
 
-
-
-int main(int argc, char **argv)
+int _tmain(int argc, _TCHAR* argv[])
 {
 	osg::ref_ptr<osg::Group> root = new osg::Group;
 	root->addChild(createShapes());
