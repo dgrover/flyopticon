@@ -1,6 +1,39 @@
 #include "stdafx.h"
 #include "flyworld.h"
 
+osg::ref_ptr<osg::Geode> cylNode = NULL;
+bool visible = false;
+
+class keyboardHandler : public osgGA::GUIEventHandler
+{
+public:
+	virtual bool handle(const osgGA::GUIEventAdapter&, osgGA::GUIActionAdapter&);
+};
+
+bool keyboardHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa)
+{
+	switch (ea.getEventType())
+	{
+	case(osgGA::GUIEventAdapter::KEYDOWN) :
+	{
+		switch (ea.getKey())
+		{
+		case 0xFFBF:
+			visible = !visible;
+			cylNode->setNodeMask(visible ? 0xffffffff : 0x0);
+			break;
+		
+		default:
+			return false;
+			break;
+		}
+		return true;
+	}
+	default:
+		return false;
+		break;
+	}
+}
 
 FlyWorld::FlyWorld(char *imgFiles, char *sequence, char *settings, int w, int h, int x) :
 imageFiles(imgFiles), sequenceFile(sequence), displayFile(settings), viewWidth(w), viewHeight(2*h), xOffset(x),
@@ -150,8 +183,14 @@ void FlyWorld::setSequence()
 void FlyWorld::setup()
 {
 	osg::setNotifyLevel(osg::NotifySeverity::ALWAYS);
+	
+	cylNode = createShapes();
+
 	osg::ref_ptr<osg::Group> root = new osg::Group;
-	root->addChild(createShapes());
+	//root->addChild(switchNode.get());
+	root->addChild(cylNode.get());
+
+	cylNode->setNodeMask(0x0);
 
 	setSequence();
 
@@ -159,6 +198,9 @@ void FlyWorld::setup()
 
 	setDisplay();
 
+	keyboardHandler* handler = new keyboardHandler();
+	viewer.addEventHandler(handler);
+	
 	osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits;
 	traits->x = xOffset;
 	traits->y = yOffset;

@@ -1,0 +1,37 @@
+#ifndef FMFWRITER_H
+#define FMFWRITER_H
+
+class FmfWriter
+{
+	private:
+		FILE *fp;
+		FILE *flog;
+		FILE *ftraj;
+
+		char fname[100];
+		char flogname[100];
+		char ftrajname[100];
+
+		unsigned __int32 fmfVersion, SizeY, SizeX;
+		unsigned __int64 bytesPerChunk;
+		char *buf;
+
+	public:
+		int id;
+		unsigned __int64 nframes;
+
+		FmfWriter();
+
+		int Open();
+		int Close();
+
+		void InitHeader(unsigned __int32 x, unsigned __int32 y);
+		void WriteHeader();
+		void WriteFrame(FlyCapture2::Image img);
+		void WriteLog(FlyCapture2::TimeStamp st);
+		void WriteTraj(cv::Mat pt);
+		int IsOpen();
+		int IsTrajOpen();
+};
+
+#endif

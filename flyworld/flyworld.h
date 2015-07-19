@@ -8,12 +8,12 @@
 #include <osg/Texture2D>
 #include <osg/CullFace>
 #include <osgGA/GUIEventHandler>
-//#include <stdio.h>
 
 #include <osg/ImageSequence>
 #include <osgDB/Registry>
 #include <osgDB/FileNameUtils>
 #include <osgDB/FileUtils>
+//#include <osg/Switch>
 
 
 class FlyWorld

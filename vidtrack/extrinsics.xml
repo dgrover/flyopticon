@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<opencv_storage>
+<P1 type_id="opencv-matrix">
+  <rows>3</rows>
+  <cols>4</cols>
+  <dt>d</dt>
+  <data>
+    1. 0. 0. 0. 
+    0. 1. 0. 0.
+    0. 0. 1. 0.
+  </data></P1>
+<P2 type_id="opencv-matrix">
+  <rows>3</rows>
+  <cols>4</cols>
+  <dt>d</dt>
+  <data>
+    0.9259922   -0.00508597     0.3775084     -394.9089
+    0.01009664     0.9998852   -0.01129516     -3.823385
+    -0.3774077     0.0142708     0.9259373      268.3804
+  </data></P2>
+</opencv_storage>

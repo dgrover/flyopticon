@@ -10,7 +10,7 @@ using namespace moodycamel;
 
 #define MAXFRAMES 1000
 
-bool stream = true;
+bool stream = false;
 
 bool lrecord = false;
 bool rrecord = false;
@@ -19,8 +19,8 @@ int imageWidth = 1024, imageHeight = 1024;
 
 ReaderWriterQueue<Image> lq(100), rq(100);
 
-ReaderWriterQueue<Image> lrec(100);
-ReaderWriterQueue<Image> rrec(100);
+ReaderWriterQueue<Image> lrec(MAXFRAMES);
+ReaderWriterQueue<Image> rrec(MAXFRAMES);
 
 ReaderWriterQueue<Mat> ldisp_frame(1), rdisp_frame(1);
 
@@ -52,7 +52,9 @@ void OnLeftImageGrabbed(Image* pImage, const void* pCallbackData)
 	llast = pImage->GetTimeStamp().cycleCount;
 
 	img.DeepCopy(pImage);
-	lq.enqueue(img);
+	
+	if (stream)
+		lq.enqueue(img);
 	
 	return;
 }
@@ -65,7 +67,9 @@ void OnRightImageGrabbed(Image* pImage, const void* pCallbackData)
 	rlast = pImage->GetTimeStamp().cycleCount;
 
 	img.DeepCopy(pImage);
-	rq.enqueue(img);
+	
+	if (stream)
+		rq.enqueue(img);
 
 	return;
 }
@@ -127,6 +131,8 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	int lcount = 0, rcount = 0;
 	int record_key_state = 0;
+
+	stream = true;
 	
 	#pragma omp parallel sections num_threads(7)
 	{
@@ -303,6 +309,9 @@ int _tmain(int argc, _TCHAR* argv[])
 					{
 						lrecord = !lrecord;
 						rrecord = !rrecord;
+
+						lcount = 0;
+						rcount = 0;
 					}
 
 					record_key_state = 1;
