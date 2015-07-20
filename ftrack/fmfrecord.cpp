@@ -195,17 +195,10 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	Mat element = getStructuringElement(MORPH_RECT, Size(3, 3), Point(1, 1));
 
-	int track_key_state = 0;
-	int record_key_state = 0;
-
 	Mat lbg, rbg;
 
 	//Mat lmean = Mat::zeros(imageWidth, imageHeight, CV_32F);
 	//Mat rmean = Mat::zeros(imageWidth, imageHeight, CV_32F);
-
-
-	//Ptr<BackgroundSubtractor> lmog2 = createBackgroundSubtractorMOG2(1000, 16, false);
-	//Ptr<BackgroundSubtractor> rmog2 = createBackgroundSubtractorMOG2(1000, 16, false);
 
 	stream = true;
 
@@ -525,6 +518,8 @@ int _tmain(int argc, _TCHAR* argv[])
 			spoint lpt, rpt;
 			Mat pt3d(1, 1, CV_64FC3);
 
+			int count = 0;
+
 			while (true)
 			{
 				while (!ltrk_pt.try_dequeue(lpt)) 
@@ -565,22 +560,23 @@ int _tmain(int argc, _TCHAR* argv[])
 					if (!fout.IsTrajOpen())
 					{
 						fout.Open();
-						//fout.InitHeader(imageWidth, imageHeight);
-						//fout.WriteHeader();
+						count = 0;
 					}
 
-					//fout.WriteFrame(tImage);
-					//fout.WriteLog(tImage.GetTimeStamp());
 					fout.WriteTraj(pt3d);
 					fout.nframes++;
+					count++;
 				}
 				else
 				{
 					if (fout.IsTrajOpen())
-							fout.Close();
+					{
+						fout.Close();
+						count = 0;
+					}
 				}
 
-				if (!stream)
+				if (!stream && (count == lcount) && (count == rcount) )
 					break;
 			}
 		}
@@ -649,6 +645,9 @@ int _tmain(int argc, _TCHAR* argv[])
 
 		#pragma omp section
 		{
+			int track_key_state = 0;
+			int record_key_state = 0;
+
 			while (true)
 			{
 				//if (GetAsyncKeyState(VK_F3))

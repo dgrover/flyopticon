@@ -5,28 +5,38 @@
 
 int xoffset = 0.0;
 int yoffset = 0.0;
+
 int width = 912.0;
 int height = 1140.0 * 2.0;
+
 float cradius = (7.5 / 2.0);		// 7.5" diameter
 float cheight = 6;					// 6" height
+
 double defaultDistance = (cradius + 12.5)*4.0;
 double distance = defaultDistance;
+
 double defaultCull = 0.0;
 double cull = defaultCull;
+
 double loadedDistance = defaultDistance;
 double loadedCull = defaultCull;
+
 double camHorLoc = 0;
 double camVertLoc = cheight*-0.5;
+
 float transInc = 0.1;
 double depth = 0;
+
 osg::Vec4 backgroundColor = osg::Vec4(0, 0, 0, 1);
 osg::Vec3d up = osg::Vec3d(0, 0, 1); //up vector
+
 const char* imageFileName = "images//numberline.gif";
 const char* displayFile = "displaySettings.txt";
+
 osgViewer::Viewer viewer;
 
-void printInfo();
-void setStartingViews();
+//void printInfo();
+//void setStartingViews();
 
 
 class keyboardHandler : public osgGA::GUIEventHandler

@@ -32,10 +32,10 @@
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="flyworld.cpp">
+    <ClCompile Include="flydisplay.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="fmfrecord.cpp">
+    <ClCompile Include="flyworld.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

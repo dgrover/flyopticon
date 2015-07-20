@@ -15,7 +15,7 @@ bool stream = false;
 bool lrecord = false;
 bool rrecord = false;
 
-int imageWidth = 1024, imageHeight = 1024;
+int imageWidth = 1280, imageHeight = 1280;
 
 ReaderWriterQueue<Image> lq(100), rq(100);
 
