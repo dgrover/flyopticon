@@ -25,8 +25,8 @@ bool stream = false;
 bool lrecord = false;
 bool rrecord = false;
 
-bool ltrack = false;
-bool rtrack = false;
+//bool ltrack = false;
+//bool rtrack = false;
 
 //bool computeBG = false;
 
@@ -329,8 +329,8 @@ int _tmain(int argc, _TCHAR* argv[])
 			{
 				if (ltrk_frame.try_dequeue(frame))
 				{
-					if (ltrack)
-					{
+					//if (ltrack)
+					//{
 						//lmog2->apply(frame, mask);
 
 						//absdiff(frame, lbg, mask);
@@ -344,7 +344,7 @@ int _tmain(int argc, _TCHAR* argv[])
 						mask.record = frame.record;
 
 						ltrk_mask.enqueue(mask);
-					}
+					//}
 				}
 
 				if (!stream)
@@ -361,8 +361,8 @@ int _tmain(int argc, _TCHAR* argv[])
 			{
 				if (rtrk_frame.try_dequeue(frame))
 				{
-					if (rtrack)
-					{
+					//if (rtrack)
+					//{
 						//rmog2->apply(frame, mask);
 
 						//absdiff(frame, rbg, mask);
@@ -376,7 +376,7 @@ int _tmain(int argc, _TCHAR* argv[])
 						mask.record = frame.record;
 
 						rtrk_mask.enqueue(mask);
-					}
+					//}
 				}
 
 				if (!stream)
@@ -643,7 +643,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
 		#pragma omp section
 		{
-			int track_key_state = 0;
+			//int track_key_state = 0;
 			int record_key_state = 0;
 
 			while (true)
@@ -651,18 +651,18 @@ int _tmain(int argc, _TCHAR* argv[])
 				//if (GetAsyncKeyState(VK_F3))
 				//	computeBG = true;
 					
-				if (GetAsyncKeyState(VK_F1))
-				{
-					if (!track_key_state)
-					{
-						ltrack = !ltrack;
-						rtrack = !rtrack;
-					}
+				//if (GetAsyncKeyState(VK_F1))
+				//{
+				//	if (!track_key_state)
+				//	{
+				//		ltrack = !ltrack;
+				//		rtrack = !rtrack;
+				//	}
 
-					track_key_state = 1;
-				}
-				else
-					track_key_state = 0;
+				//	track_key_state = 1;
+				//}
+				//else
+				//	track_key_state = 0;
 
 
 				if (GetAsyncKeyState(VK_F2))
