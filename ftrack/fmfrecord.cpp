@@ -8,8 +8,6 @@ using namespace FlyCapture2;
 using namespace cv;
 using namespace moodycamel;
 
-#define MAXFRAMES 1000
-
 struct smat
 {
 	Mat frame;
