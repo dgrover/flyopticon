@@ -18,7 +18,7 @@ bool keyboardHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionA
 	{
 		switch (ea.getKey())
 		{
-		case 0xFFBF:
+		case 0xFFBF:	//press F2 to show display
 			visible = !visible;
 			cylNode->setNodeMask(visible ? 0xffffffff : 0x0);
 			break;
@@ -35,12 +35,24 @@ bool keyboardHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionA
 	}
 }
 
-FlyWorld::FlyWorld(char *imgFiles, char *sequence, char *settings, int w, int h, int x) :
-imageFiles(imgFiles), sequenceFile(sequence), displayFile(settings), viewWidth(w), viewHeight(2*h), xOffset(x),
+//FlyWorld::FlyWorld(char *imgFiles, char *sequence, char *settings, int w, int h, int x) :
+//imageFiles(imgFiles), sequenceFile(sequence), displayFile(settings), viewWidth(w), viewHeight(2*h), xOffset(x),
+//yOffset(0), cRadius(7.5 / 2.0), cHeight(6), defaultDistance(cRadius + 12.5), distance(defaultDistance), defaultCull(0),
+//cull(defaultCull), camHorLoc(0), camVertLoc(cHeight*-0.5), depth(0)
+//{
+//	blackbgcolor = osg::Vec4(0, 0, 0, 1);	//black background
+//		
+//	up = osg::Vec3d(0, 0, 1);
+//	setup();
+//}
+
+FlyWorld::FlyWorld(char *imgFiles, char *settings, int w, int h, int x) :
+imageFiles(imgFiles), displayFile(settings), viewWidth(w), viewHeight(2 * h), xOffset(x),
 yOffset(0), cRadius(7.5 / 2.0), cHeight(6), defaultDistance(cRadius + 12.5), distance(defaultDistance), defaultCull(0),
 cull(defaultCull), camHorLoc(0), camVertLoc(cHeight*-0.5), depth(0)
 {
-	backgroundColor = osg::Vec4(0, 0, 0, 1);
+	blackbgcolor = osg::Vec4(0, 0, 0, 1);	//black background
+
 	up = osg::Vec3d(0, 0, 1);
 	setup();
 }
@@ -160,24 +172,24 @@ void FlyWorld::setDisplay()
 	}
 }
 
-void FlyWorld::setSequence()
-{
-	float number;
-	std::ifstream file(sequenceFile, std::ios::in);
-
-	if (file.is_open())
-	{
-		while (file >> number)
-			sequence.push_back(number);
-
-		file.close();
-	}
-	else
-	{
-		for (unsigned int i = 0; i < numImages; i++)
-			sequence.push_back(1);
-	}
-}
+//void FlyWorld::setSequence()
+//{
+//	float number;
+//	std::ifstream file(sequenceFile, std::ios::in);
+//
+//	if (file.is_open())
+//	{
+//		while (file >> number)
+//			sequence.push_back(number);
+//
+//		file.close();
+//	}
+//	else
+//	{
+//		for (unsigned int i = 0; i < numImages; i++)
+//			sequence.push_back(1);
+//	}
+//}
 
 
 void FlyWorld::setup()
@@ -192,7 +204,7 @@ void FlyWorld::setup()
 
 	cylNode->setNodeMask(0x0);
 
-	setSequence();
+	//setSequence();
 
 	viewer.setSceneData(root);
 
@@ -216,7 +228,9 @@ void FlyWorld::setup()
 	GLenum buffer = traits->doubleBuffer ? GL_BACK : GL_FRONT;
 	viewer.getCamera()->setDrawBuffer(buffer);
 	viewer.getCamera()->setReadBuffer(buffer);
-	viewer.getCamera()->setClearColor(backgroundColor);
+	
+	viewer.getCamera()->setClearColor(blackbgcolor);
+	
 	viewer.setCameraManipulator(NULL);
 	viewer.getCamera()->setComputeNearFarMode(osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR);
 	viewer.getCamera()->setCullingMode(osg::CullSettings::ENABLE_ALL_CULLING);

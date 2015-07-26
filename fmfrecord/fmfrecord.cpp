@@ -8,7 +8,7 @@ using namespace FlyCapture2;
 using namespace cv;
 using namespace moodycamel;
 
-#define MAXFRAMES 1000
+#define MAXFRAMES 6000
 
 bool stream = false;
 
