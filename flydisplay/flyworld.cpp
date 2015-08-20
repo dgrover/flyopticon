@@ -202,7 +202,7 @@ void FlyWorld::setup()
 	//root->addChild(switchNode.get());
 	root->addChild(cylNode.get());
 
-	cylNode->setNodeMask(0x0);
+	cylNode->setNodeMask(visible ? 0xffffffff : 0x0);
 
 	//setSequence();
 
